@@ -1,8 +1,208 @@
-import { ArrowRight, CheckCircle2, Crown, FileWarning, Landmark, Sparkles } from 'lucide-react'; import Link from 'next/link'; import ServiceCard from '@/components/ServiceCard'; import NoticeBoard from '@/components/NoticeBoard'; import {stats} from '@/lib/data'
-export default function Home(){return <div>
- <section className="relative overflow-hidden border-b border-[#ded6c9]"><div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(201,164,75,.18),transparent_28%),radial-gradient(circle_at_10%_30%,rgba(16,36,61,.08),transparent_25%)]"/><div className="relative max-w-7xl mx-auto px-5 py-16 md:py-24 grid lg:grid-cols-[1.2fr_.8fr] gap-12 items-center"><div><div className="badge bg-[#10243d] text-white inline-flex items-center gap-2"><Landmark size={13}/> Government of Everything Unnecessary</div><h1 className="serif text-6xl md:text-8xl leading-[.95] mt-6 tracking-tight">Officially solving<br/><span className="text-[#6f1020]">unimportant problems.</span></h1><p className="mt-7 text-lg md:text-xl text-slate-600 max-w-2xl leading-8">Welcome to the Republic’s most unnecessarily official digital service portal. Report petty incidents, earn useless points, request prestigious certificates, and become a citizen of questionable distinction.</p><div className="flex flex-wrap gap-3 mt-8"><Link href="/report-incident" className="btn btn-primary px-5">Report an incident <ArrowRight size={17}/></Link><Link href="/certificate" className="btn btn-secondary px-5">Request a certificate</Link></div><div className="flex flex-wrap gap-6 mt-8 text-sm text-slate-500"><span className="inline-flex items-center gap-2"><CheckCircle2 size={16} className="text-[#6f1020]"/> No useful outcomes guaranteed</span><span className="inline-flex items-center gap-2"><Sparkles size={16} className="text-[#c9a44b]"/> 100% official-looking</span></div></div>
- <div className="card rounded-3xl p-7 md:p-8 rotate-[1deg]"><div className="flex items-start justify-between"><div><div className="text-xs tracking-[.2em] uppercase font-bold text-[#6f1020]">Featured case</div><div className="serif text-3xl mt-2">The Missing Pen</div></div><div className="w-14 h-14 rounded-full border border-[#c9a44b] bg-[#10243d] text-[#c9a44b] grid place-items-center font-bold text-xs">MUA</div></div><div className="mt-8 border-t border-dashed border-[#cfc6b7] pt-5 grid grid-cols-2 gap-5 text-sm"><div><div className="text-slate-400">Case ID</div><div className="font-bold mt-1">MUA-2026-1042</div></div><div><div className="text-slate-400">Department</div><div className="font-bold mt-1">Minor Crimes</div></div><div><div className="text-slate-400">Status</div><div className="font-bold mt-1 text-[#6f1020]">Investigation Completed</div></div><div><div className="text-slate-400">Decision</div><div className="font-bold mt-1">Check your pockets</div></div></div><div className="mt-7 bg-[#efe6ce] rounded-xl p-4 text-sm leading-6">“The Ministry confirms that the pen is missing. The suspect could not be identified.”</div><Link href="/track" className="mt-5 btn btn-wine w-full">Inspect this case <ArrowRight size={16}/></Link></div></div></section>
- <section className="max-w-7xl mx-auto px-5 py-14"><div className="grid lg:grid-cols-[1fr_1.15fr] gap-8 items-start"><div><div className="badge bg-[#efe6ce] text-[#6f1020]">How the ecosystem works</div><h2 className="serif text-4xl md:text-5xl mt-4">One Ministry.<br/>Six extremely important ideas.</h2><p className="text-slate-600 leading-7 mt-4 max-w-xl">Your profile, reports, certificates, tracking history and useless ranking all connect into one wonderfully unnecessary citizen record.</p><div className="mt-8 space-y-3">{[['01','Citizen profile','Your official record begins here.'],['02','Report or request','Create a case or earn a certificate.'],['03','Case / Application ID','Every action receives an important-looking number.'],['04','Track & conclude','Watch the bureaucracy unfold.']].map(x=><div key={x[0]} className="flex gap-4 items-start"><div className="text-xs font-black text-[#6f1020] mt-1">{x[0]}</div><div><div className="font-bold">{x[1]}</div><div className="text-sm text-slate-500 mt-1">{x[2]}</div></div></div>)}</div></div><div id="services" className="grid md:grid-cols-2 gap-4"><ServiceCard type="incident" title="Report an Incident" desc="Lost a pen? Someone stole your seat? The Ministry is prepared to investigate." href="/report-incident" accent="bg-[#f3e1e3] text-[#6f1020]"/><ServiceCard type="cert" title="Request a Certificate" desc="Turn everyday mediocrity into an official-looking achievement." href="/certificate" accent="bg-[#efe6ce] text-[#7a5a12]"/><ServiceCard type="track" title="Track an Application" desc="Enter your ID and discover whether anything meaningful has happened." href="/track" accent="bg-[#e4ebf2] text-[#10243d]"/></div></div></section>
- <section className="bg-[#10243d] text-white"><div className="max-w-7xl mx-auto px-5 py-11 grid grid-cols-2 md:grid-cols-4 gap-8">{stats.map(([v,l])=><div key={l}><div className="serif text-4xl">{v}</div><div className="text-xs uppercase tracking-[.12em] text-slate-400 mt-2">{l}</div></div>)}</div></section>
- <section className="max-w-7xl mx-auto px-5 py-14 grid lg:grid-cols-[1.15fr_.85fr] gap-8"><NoticeBoard/><div className="card rounded-2xl p-7"><div className="flex items-center gap-2 text-[#6f1020] font-bold text-sm"><Crown size={17}/> CITIZEN RANKINGS</div><h3 className="serif text-3xl mt-4">Become the most useless citizen.</h3><p className="text-slate-600 leading-7 mt-3">Earn +10 for incidents, +20 for certificates, +5 for completed applications and +30 for exceptional uselessness.</p><div className="mt-6 space-y-3">{[['🥇','Rahul','820'],['🥈','Anu','760'],['🥉','Parvathy','710']].map(r=><div key={r[1]} className="flex items-center justify-between bg-white border border-[#ded6c9] rounded-xl p-3"><span className="flex items-center gap-3"><span className="text-xl">{r[0]}</span><span className="font-bold">{r[1]}</span></span><span className="font-black">{r[2]} pts</span></div>)}</div><Link href="/leaderboard" className="btn btn-secondary mt-5 w-full">View full ranking</Link></div></section>
- </div>}
+"use client";
+
+import Link from "next/link";
+import { ArrowRight, FileWarning, Award, SearchCheck, Crown, Bell, ClipboardList, CheckCircle2, Clock } from "lucide-react";
+import AuthGuard from "@/components/AuthGuard";
+import { useAuth } from "@/lib/auth-context";
+import { notices } from "@/lib/data";
+
+const services = [
+  { icon: FileWarning, label: "Report an Incident", desc: "Submit a complaint about something completely unnecessary.", href: "/report-incident", accent: "bg-[#f3e1e3] text-[#6f1020]" },
+  { icon: Award, label: "Request a Certificate", desc: "Turn everyday mediocrity into an official-looking achievement.", href: "/certificate", accent: "bg-[#efe6ce] text-[#7a5a12]" },
+  { icon: SearchCheck, label: "Track an Application", desc: "Discover whether anything meaningful has happened.", href: "/track", accent: "bg-[#e4ebf2] text-[#10243d]" },
+  { icon: Crown, label: "Citizen Rankings", desc: "See where you stand in the hierarchy of uselessness.", href: "/leaderboard", accent: "bg-[#f0ece4] text-[#5a4a2a]" },
+];
+
+function Dashboard() {
+  const { user, citizen } = useAuth();
+
+  const displayName = citizen?.fullName || user?.displayName || user?.email?.split("@")[0] || "Distinguished Citizen";
+  const firstName = displayName.split(" ")[0];
+  const initials = displayName.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+
+  return (
+    <div className="max-w-7xl mx-auto px-5 py-10">
+
+      {/* Welcome banner */}
+      <div className="card rounded-2xl overflow-hidden mb-8">
+        <div className="bg-[#10243d] px-7 py-6 md:px-10 md:py-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="flex items-center gap-5">
+            <div className="w-16 h-16 rounded-full bg-[#c9a44b] text-[#10243d] grid place-items-center text-xl font-black shrink-0">
+              {initials}
+            </div>
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#c9a44b] mb-1">
+                Welcome back, Distinguished Citizen
+              </div>
+              <h1 className="serif text-3xl md:text-4xl text-white font-black">{firstName}</h1>
+              <p className="text-slate-400 text-sm mt-1">
+                Your continued participation in unnecessary administrative activities is appreciated.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 shrink-0">
+            <Link href="/report-incident" className="btn btn-wine px-5 py-2.5 text-sm">
+              Report Incident <ArrowRight size={15} />
+            </Link>
+            <Link href="/certificate" className="flex items-center gap-2 px-5 py-2.5 rounded-[.65rem] border border-white/20 text-white text-sm font-bold hover:bg-white/10 transition-colors">
+              Request Certificate
+            </Link>
+          </div>
+        </div>
+
+        {/* Citizen stats bar */}
+        <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-y md:divide-y-0 divide-[#ded6c9]">
+          {[
+            { label: "Citizen ID", value: citizen?.citizenId || "Pending", icon: "🪪" },
+            { label: "Useless Points", value: citizen?.uselessPoints?.toString() || "0", icon: "⭐" },
+            { label: "Current Rank", value: citizen?.rank || "Probationary Citizen", icon: "🏛️" },
+            { label: "Applications", value: citizen?.applicationCount?.toString() || "0", icon: "📋" },
+          ].map(({ label, value, icon }) => (
+            <div key={label} className="px-6 py-4">
+              <div className="text-[10px] uppercase tracking-[.14em] text-slate-400 font-bold flex items-center gap-1.5">
+                <span>{icon}</span> {label}
+              </div>
+              <div className="font-black text-lg mt-1 truncate">{value}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main grid */}
+      <div className="grid lg:grid-cols-[1fr_.42fr] gap-8">
+
+        {/* Left column */}
+        <div className="space-y-8">
+
+          {/* Services */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="serif text-2xl font-black">Ministry Services</h2>
+              <span className="text-xs text-slate-500 font-semibold">All services →</span>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {services.map(({ icon: Icon, label, desc, href, accent }) => (
+                <Link key={label} href={href} className="group card rounded-2xl p-6 hover:-translate-y-1 transition-transform block">
+                  <div className={`w-11 h-11 rounded-xl grid place-items-center ${accent} mb-4`}>
+                    <Icon size={20} />
+                  </div>
+                  <h3 className="serif text-xl font-bold">{label}</h3>
+                  <p className="text-sm text-slate-500 mt-1 leading-6">{desc}</p>
+                  <div className="mt-4 text-sm font-bold text-[#10243d] group-hover:text-[#6f1020] transition-colors">
+                    Open service →
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Citizen status */}
+          <section className="card rounded-2xl p-7">
+            <h2 className="serif text-2xl font-black mb-5">Citizen Status</h2>
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="bg-[#f7f3ea] rounded-xl p-4 border border-[#ded6c9]">
+                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Status</div>
+                <div className="flex items-center gap-2 mt-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                  <span className="font-bold text-sm">{citizen?.citizenshipStatus || "Active"}</span>
+                </div>
+              </div>
+              <div className="bg-[#f7f3ea] rounded-xl p-4 border border-[#ded6c9]">
+                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Member Since</div>
+                <div className="font-bold text-sm mt-2">
+                  {citizen?.joinedAt ? new Date(citizen.joinedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—"}
+                </div>
+              </div>
+              <div className="bg-[#f7f3ea] rounded-xl p-4 border border-[#ded6c9]">
+                <div className="text-[10px] uppercase tracking-wider text-slate-400 font-bold">Classification</div>
+                <div className="font-bold text-sm mt-2">Public Citizen</div>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center gap-3 p-4 bg-[#efe6ce] rounded-xl">
+              <CheckCircle2 size={18} className="text-[#7a5a12] shrink-0" />
+              <p className="text-sm text-[#7a5a12] font-semibold">
+                Your citizenship is active. The Ministry acknowledges your existence.
+              </p>
+            </div>
+          </section>
+
+        </div>
+
+        {/* Right column */}
+        <div className="space-y-6">
+
+          {/* Quick actions */}
+          <section className="card rounded-2xl p-6">
+            <h3 className="font-black text-sm uppercase tracking-wider mb-4">Quick Actions</h3>
+            <div className="space-y-2">
+              {[
+                { href: "/report-incident", icon: FileWarning, label: "New Incident Report" },
+                { href: "/certificate", icon: Award, label: "Request Certificate" },
+                { href: "/track", icon: SearchCheck, label: "Track Application" },
+                { href: "/notifications", icon: Bell, label: "View Notifications" },
+                { href: "/profile", icon: ClipboardList, label: "My Profile" },
+              ].map(({ href, icon: Icon, label }) => (
+                <Link key={label} href={href} className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#f1eee7] transition-colors group">
+                  <Icon size={16} className="text-[#6f1020] shrink-0" />
+                  <span className="text-sm font-semibold group-hover:text-[#6f1020] transition-colors">{label}</span>
+                  <ArrowRight size={14} className="ml-auto text-slate-300 group-hover:text-[#6f1020] transition-colors" />
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          {/* Notice board */}
+          <section className="card rounded-2xl overflow-hidden">
+            <div className="bg-[#10243d] text-white px-5 py-3 flex items-center justify-between">
+              <span className="font-bold text-sm tracking-wide">Ministry Notices</span>
+              <span className="text-[10px] tracking-[.18em] text-[#c9a44b]">LIVE</span>
+            </div>
+            <div className="divide-y divide-[#ded6c9]">
+              {notices.slice(0, 2).map((n) => (
+                <div key={n.tag} className="p-5">
+                  <div className="flex justify-between gap-2 mb-2">
+                    <span className="badge bg-[#efe6ce] text-[#6f1020] text-[9px]">{n.tag}</span>
+                    <span className="text-[10px] text-slate-400">{n.date}</span>
+                  </div>
+                  <h4 className="serif text-base font-bold">{n.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1 leading-5">{n.body}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* Points progress */}
+          <section className="card rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-black text-sm uppercase tracking-wider">Useless Points</h3>
+              <span className="serif text-2xl font-black text-[#6f1020]">{citizen?.uselessPoints || 0}</span>
+            </div>
+            <div className="w-full bg-[#ede8df] rounded-full h-2 mb-3">
+              <div
+                className="bg-[#c9a44b] h-2 rounded-full transition-all"
+                style={{ width: `${Math.min(((citizen?.uselessPoints || 0) / 500) * 100, 100)}%` }}
+              />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              {citizen?.rank || "Probationary Citizen"} · {500 - (citizen?.uselessPoints || 0)} pts to Supreme Bureaucratic Entity
+            </p>
+            <div className="mt-3 text-[10px] text-slate-400 space-y-1">
+              <div className="flex items-center gap-2"><Clock size={11} /> +10 pts per incident report</div>
+              <div className="flex items-center gap-2"><Clock size={11} /> +20 pts per certificate</div>
+              <div className="flex items-center gap-2"><Clock size={11} /> +30 pts for exceptional uselessness</div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <AuthGuard>
+      <Dashboard />
+    </AuthGuard>
+  );
+}
