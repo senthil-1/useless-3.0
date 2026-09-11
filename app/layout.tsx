@@ -12,7 +12,7 @@ export default function RootLayout({children}:{children:React.ReactNode}){
    <div className="gold-rule"/>
    <div className="max-w-7xl mx-auto px-5 h-20 flex items-center justify-between gap-5">
     <Link href="/" className="flex items-center gap-3 min-w-0">
-      <div className="w-12 h-12 rounded-full border-2 border-[#c9a44b] bg-[#10243d] text-[#c9a44b] grid place-items-center font-bold text-lg">MUA</div>
+      <img src="/mua-logo.png" alt="Ministry of Useless Affairs" className="w-12 h-12 shrink-0 object-contain" />
       <div className="min-w-0"><div className="font-bold text-sm tracking-wide truncate">MINISTRY OF USELESS AFFAIRS</div><div className="text-[11px] text-slate-500">Department of Completely Unnecessary Governance</div></div>
     </Link>
     <nav className="hidden md:flex items-center gap-7 text-sm font-semibold">{nav.map(([label,href])=><Link key={label} href={href} className="hover:text-[#6f1020]">{label}</Link>)}</nav>
