@@ -22,10 +22,15 @@ function LeaderboardPage() {
 
   useEffect(() => {
     const q = query(collection(db, "citizens"), orderBy("uselessPoints", "desc"), limit(20));
-    getDocs(q).then((snap) => {
-      setRows(snap.docs.map((d) => ({ uid: d.id, ...d.data() } as LeaderEntry)));
-      setLoading(false);
-    });
+    getDocs(q)
+      .then((snap) => {
+        setRows(snap.docs.map((d) => ({ uid: d.id, ...d.data() } as LeaderEntry)));
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn("Leaderboard: Could not fetch rankings:", err);
+        setLoading(false);
+      });
   }, []);
 
   return (

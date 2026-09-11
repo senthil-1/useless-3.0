@@ -1,31 +1,80 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { onAuthStateChanged, User } from "firebase/auth";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth-context";
+import { auth } from "@/lib/firebase";
 
-export default function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+interface AuthGuardProps {
+  children: React.ReactNode;
+}
+
+export default function AuthGuard({ children }: AuthGuardProps) {
   const router = useRouter();
 
-  useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
-    }
-  }, [user, loading, router]);
+  const [user, setUser] = useState<User | null>(auth.currentUser);
+  const [checking, setChecking] = useState(!auth.currentUser);
 
-  if (loading) {
+  useEffect(() => {
+    // Firebase may already have the user available.
+    if (auth.currentUser) {
+      setUser(auth.currentUser);
+      setChecking(false);
+    }
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      if (!currentUser) {
+        setUser(null);
+        setChecking(false);
+
+        router.replace("/login");
+        return;
+      }
+
+      setUser(currentUser);
+      setChecking(false);
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
+  /*
+   * Only show the verification screen when Firebase
+   * genuinely hasn't restored the authentication state yet.
+   */
+  if (checking && !user) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center gap-4 bg-[#f7f3ea]">
-        <img src="/mua-logo.png" alt="MUA" className="w-16 h-16 object-contain animate-pulse" />
-        <p className="text-[11px] font-black uppercase tracking-[0.2em] text-[#10243d]">
-          Ministry is verifying your credentials...
-        </p>
-      </div>
+      <main className="flex min-h-screen items-center justify-center bg-[#f4efe4] px-6">
+        <div className="w-full max-w-md rounded-3xl border border-[#d8cfbd] bg-[#fffaf0] p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#172235] bg-[#9b1c31] text-sm font-black text-white">
+            MUA
+          </div>
+
+          <p className="mt-6 text-xs font-black uppercase tracking-[0.2em] text-[#9b1c31]">
+            Ministry Authentication
+          </p>
+
+          <h1 className="mt-2 text-2xl font-black text-[#172235]">
+            Verifying Citizenship
+          </h1>
+
+          <p className="mt-3 text-sm leading-6 text-[#687386]">
+            Please wait while the Ministry unnecessarily verifies
+            your authentication status.
+          </p>
+
+          <div className="mx-auto mt-6 h-2 w-32 overflow-hidden rounded-full bg-[#e6dece]">
+            <div className="h-full w-1/2 animate-pulse rounded-full bg-[#9b1c31]" />
+          </div>
+        </div>
+      </main>
     );
   }
 
-  if (!user) return null;
+  // If Firebase has confirmed the user, render immediately.
+  if (user) {
+    return <>{children}</>;
+  }
 
-  return <>{children}</>;
+  return null;
 }

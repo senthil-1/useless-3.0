@@ -13,39 +13,46 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import PageContainer from "@/components/PageContainer";
 import {
+  Award,
   CheckCircle2,
-  FileWarning,
   Send,
   RotateCcw,
   ClipboardList,
 } from "lucide-react";
 
-const CATEGORIES = [
-  "Lost Charger",
-  "Excessive Waiting",
-  "Unnecessary Paperwork",
-  "Missing Item",
-  "Minor Inconvenience",
-  "Government Confusion",
-  "Other",
+const CERTIFICATE_TYPES = [
+  {
+    type: "Certificate of Existence",
+    desc: "Formal proof that you exist and have been physically present in the universe today.",
+  },
+  {
+    type: "Certificate of Excessive Patience",
+    desc: "Awarded for surviving prolonged bureaucratic procedures without audible shouting.",
+  },
+  {
+    type: "Certificate of Unnecessary Participation",
+    desc: "Recognizes your admirable commitment to activities that required zero involvement.",
+  },
+  {
+    type: "Certificate of Administrative Suffering",
+    desc: "Certifies enduring unnecessary forms, triplicate signatures, and misplaced documents.",
+  },
+  {
+    type: "Certificate of Bureaucratic Excellence",
+    desc: "For mastering the art of looking profoundly busy while accomplishing nothing of note.",
+  },
+  {
+    type: "Other",
+    desc: "For highly custom or unclassified forms of questionable personal accomplishment.",
+  },
 ];
 
-const SEVERITIES = [
-  { value: "Mild", label: "Mild (barely warrants eye contact)" },
-  { value: "Moderate", label: "Moderate (requires an official sigh)" },
-  { value: "Serious", label: "Serious (deserves a stamped form)" },
-  { value: "Completely Unnecessary", label: "Completely Unnecessary (highest Ministry priority)" },
-];
-
-export default function ReportIncidentPage() {
+export default function RequestCertificatePage() {
   const { user, citizen, refreshCitizen } = useAuth();
 
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState(CATEGORIES[0]);
-  const [description, setDescription] = useState("");
-  const [location, setLocation] = useState("");
-  const [severity, setSeverity] = useState("Mild");
-  const [additionalInfo, setAdditionalInfo] = useState("");
+  const [selectedType, setSelectedType] = useState(CERTIFICATE_TYPES[0].type);
+  const [purpose, setPurpose] = useState("");
+  const [notes, setNotes] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
@@ -57,6 +64,8 @@ export default function ReportIncidentPage() {
     department?: string;
     status?: string;
     finalDecision?: string;
+    certificateTitle?: string;
+    certificateValue?: string;
   } | null>(null);
 
   const processCaseWithAi = async (caseId: string, caseData: any) => {
@@ -74,7 +83,7 @@ export default function ReportIncidentPage() {
         },
         body: JSON.stringify({
           caseId,
-          caseType: "incident",
+          caseType: "certificate",
           caseData,
         }),
       });
@@ -87,10 +96,10 @@ export default function ReportIncidentPage() {
           // Update local cache with AI results
           if (typeof window !== "undefined") {
             try {
-              const key = `mua_incidents_${user.uid}`;
+              const key = `mua_certificates_${user.uid}`;
               const existing = JSON.parse(localStorage.getItem(key) || "[]");
-              const updated = existing.map((inc: any) =>
-                inc.id === caseId ? { ...inc, ...data.case } : inc
+              const updated = existing.map((cert: any) =>
+                cert.id === caseId ? { ...cert, ...data.case } : cert
               );
               localStorage.setItem(key, JSON.stringify(updated));
             } catch (e) {}
@@ -100,7 +109,7 @@ export default function ReportIncidentPage() {
         setAiFailed(true);
       }
     } catch (aiErr) {
-      console.warn("MUA AI — Automatic assessment error:", aiErr);
+      console.warn("MUA AI — Certificate assessment error:", aiErr);
       setAiFailed(true);
     } finally {
       setProcessingAi(false);
@@ -111,12 +120,12 @@ export default function ReportIncidentPage() {
     e.preventDefault();
 
     if (!user) {
-      setError("You must be authenticated to report an incident.");
+      setError("You must be authenticated to request a certificate.");
       return;
     }
 
-    if (!title.trim() || !description.trim()) {
-      setError("Please complete all required fields (Title and Description).");
+    if (!purpose.trim()) {
+      setError("Please state the purpose of your certificate request.");
       return;
     }
 
@@ -126,7 +135,7 @@ export default function ReportIncidentPage() {
 
       const year = new Date().getFullYear();
       const rand = Math.floor(100000 + Math.random() * 900000);
-      const incidentId = `MUA-INC-${year}-${rand}`;
+      const requestId = `MUA-CERT-${year}-${rand}`;
 
       const citizenId =
         citizen?.citizenId || `MUA-${user.uid.slice(0, 6).toUpperCase()}`;
@@ -136,29 +145,26 @@ export default function ReportIncidentPage() {
         user.email?.split("@")[0] ||
         "Distinguished Citizen";
 
-      const incidentData = {
-        id: incidentId,
+      const requestData = {
+        id: requestId,
         userId: user.uid,
         citizenId,
         citizenName,
-        title: title.trim(),
-        category,
-        description: description.trim(),
-        location: location.trim() || "Unspecified Realm",
-        severity,
-        additionalInfo: additionalInfo.trim() || null,
+        certificateType: selectedType,
+        purpose: purpose.trim(),
+        notes: notes.trim() || null,
         status: "Submitted",
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      // 1. Cache incident locally for instantaneous tracking and offline safety
+      // 1. Cache certificate request locally for instantaneous tracking and offline safety
       if (typeof window !== "undefined") {
         try {
-          const key = `mua_incidents_${user.uid}`;
+          const key = `mua_certificates_${user.uid}`;
           const existing = JSON.parse(localStorage.getItem(key) || "[]");
           existing.unshift({
-            ...incidentData,
+            ...requestData,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
@@ -173,13 +179,13 @@ export default function ReportIncidentPage() {
             localStorage.setItem(cKey, JSON.stringify(parsed));
           }
         } catch (cacheErr) {
-          console.warn("Could not cache incident locally:", cacheErr);
+          console.warn("Could not cache certificate request locally:", cacheErr);
         }
       }
 
       // 2. Real Firestore operations executed in parallel
       const firestoreTask = Promise.all([
-        setDoc(doc(db, "incidents", incidentId), incidentData),
+        setDoc(doc(db, "certificateRequests", requestId), requestData),
         setDoc(
           doc(db, "citizens", user.uid),
           { applicationCount: increment(1) },
@@ -188,7 +194,7 @@ export default function ReportIncidentPage() {
       ]);
 
       firestoreTask
-        .then(() => console.log("MUA — Incident recorded in Firestore:", incidentId))
+        .then(() => console.log("MUA — Certificate request recorded in Firestore:", requestId))
         .catch((err) => console.warn("MUA — Firestore write queued/delayed:", err));
 
       // 3. Fast authentic responsiveness: at most 500ms wait so the UI never hangs
@@ -201,15 +207,15 @@ export default function ReportIncidentPage() {
         refreshCitizen();
       }
 
-      setSubmittedId(incidentId);
+      setSubmittedId(requestId);
 
       // 4. Trigger AI Case Assessment
-      processCaseWithAi(incidentId, incidentData);
+      processCaseWithAi(requestId, requestData);
     } catch (err: any) {
-      console.error("MUA Incident Report Error:", err);
+      console.error("MUA Certificate Request Error:", err);
       setError(
         err?.message ||
-          "The Ministry failed to process your incident. Please verify your connection or database configuration."
+          "The Ministry could not lodge your certificate request. Please verify your connection."
       );
     } finally {
       setLoading(false);
@@ -217,12 +223,9 @@ export default function ReportIncidentPage() {
   };
 
   const handleReset = () => {
-    setTitle("");
-    setCategory(CATEGORIES[0]);
-    setDescription("");
-    setLocation("");
-    setSeverity("Mild");
-    setAdditionalInfo("");
+    setSelectedType(CERTIFICATE_TYPES[0].type);
+    setPurpose("");
+    setNotes("");
     setSubmittedId(null);
     setAiResult(null);
     setAiFailed(false);
@@ -231,35 +234,35 @@ export default function ReportIncidentPage() {
 
   return (
     <PageContainer
-      title="Report Incident"
-      subtitle="Report completely unnecessary problems, inconveniences, and incidents requiring urgent bureaucratic attention."
+      title="Request Certificate"
+      subtitle="Apply for official government validation of accomplishments that required minimal or entirely questionable effort."
       showBackButton={true}
       maxWidth="max-w-3xl"
     >
       {/* SUCCESS STATE */}
       {submittedId ? (
         <div className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] p-8 shadow-[6px_6px_0_#172235] text-center sm:p-10">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#172235] bg-[#e8f5e9] text-[#2e7d32] shadow-[3px_3px_0_#172235]">
-            <CheckCircle2 size={36} />
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#172235] bg-[#fff3d6] text-[#b38600] shadow-[3px_3px_0_#172235]">
+            <Award size={36} />
           </div>
 
           <span className="mt-5 inline-block rounded border border-[#172235] bg-[#e8c878] px-3 py-1 text-[9px] font-black uppercase tracking-[0.2em] text-[#172235]">
-            Ministry Acknowledgment
+            Application Acknowledged
           </span>
 
           <h2 className="mt-3 font-serif text-3xl font-black text-[#172235] sm:text-4xl">
-            Incident Submitted
+            Certificate Request Lodged
           </h2>
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[#687386]">
-            Your incident has been officially acknowledged by the Ministry and routed to the Artificially Intelligent Bureaucratic Division.
+            Your request for a <strong className="text-[#172235]">{selectedType}</strong> has been routed to the Ministry's Artificially Intelligent Bureaucratic Council.
           </p>
 
-          {/* AI & Case Dossier Card */}
+          {/* AI Certificate Dossier Box */}
           <div className="mx-auto my-6 max-w-md rounded-xl border-2 border-[#172235] bg-[#f4efe4] p-5 text-left shadow-[3px_3px_0_#172235]">
             <div className="flex justify-between items-center text-xs pb-2.5 border-b border-[#d8cfbd]">
               <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
-                Case ID:
+                Request ID:
               </span>
               <span className="font-mono font-black text-sm text-[#9b1c31]">
                 {submittedId}
@@ -271,7 +274,7 @@ export default function ReportIncidentPage() {
                 Department:
               </span>
               <span className="font-serif font-black text-xs text-[#172235] text-right">
-                {aiResult?.department || (processingAi ? "Assessing Jurisdiction..." : "Department of Minor Inconveniences")}
+                {aiResult?.department || (processingAi ? "Reviewing Merits..." : "Department of Bureaucratic Affairs")}
               </span>
             </div>
 
@@ -279,8 +282,26 @@ export default function ReportIncidentPage() {
               <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
                 Status:
               </span>
-              <span className="inline-flex items-center rounded-full bg-[#e3f2fd] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#1565c0]">
-                {aiResult?.status || "Under Review"}
+              <span className="inline-flex items-center rounded-full bg-[#e8f5e9] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#2e7d32]">
+                {aiResult?.status || "Approved"}
+              </span>
+            </div>
+
+            <div className="mt-2.5 flex justify-between items-center text-xs pb-2.5 border-b border-[#d8cfbd]">
+              <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
+                Certificate Title:
+              </span>
+              <span className="font-serif font-bold text-xs text-[#172235] text-right">
+                {aiResult?.certificateTitle || selectedType}
+              </span>
+            </div>
+
+            <div className="mt-2.5 flex justify-between items-center text-xs pb-2.5 border-b border-[#d8cfbd]">
+              <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
+                Awarded Value:
+              </span>
+              <span className="font-serif font-black text-xs text-[#9b1c31] text-right tracking-wide">
+                {aiResult?.certificateValue || (processingAi ? "Synthesizing..." : "EXTRAORDINARY BUREAUCRATIC PATIENCE")}
               </span>
             </div>
 
@@ -292,12 +313,12 @@ export default function ReportIncidentPage() {
                 <div className="mt-2 flex items-center gap-2.5 p-3 rounded-lg border border-[#e8c878] bg-[#fff8e1] text-xs text-[#172235]">
                   <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#9b1c31] border-t-transparent shrink-0" />
                   <span className="text-[11px] leading-5">
-                    Your case has entered the Ministry's Artificially Intelligent Bureaucratic Processing Division. Pondering trivialities...
+                    Your request has entered the Ministry's Artificially Intelligent Bureaucratic Processing Division. Formulating certificate merits...
                   </span>
                 </div>
               ) : (
                 <p className="mt-1.5 p-3 rounded-lg border border-[#d8cfbd] bg-[#fffaf0] text-xs leading-5 text-[#172235] italic">
-                  "{aiResult?.finalDecision || "The Ministry has reviewed the circumstances and determined that the matter was sufficiently unnecessary to warrant prolonged administrative attention."}"
+                  "{aiResult?.finalDecision || "The Ministry has determined that the applicant demonstrated an unnecessarily admirable level of patience and is formally qualified for certification."}"
                 </p>
               )}
             </div>
@@ -308,8 +329,8 @@ export default function ReportIncidentPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    const localInc = JSON.parse(localStorage.getItem(`mua_incidents_${user?.uid}`) || "[]");
-                    const current = localInc.find((i: any) => i.id === submittedId) || { id: submittedId };
+                    const localCerts = JSON.parse(localStorage.getItem(`mua_certificates_${user?.uid}`) || "[]");
+                    const current = localCerts.find((c: any) => c.id === submittedId) || { id: submittedId };
                     processCaseWithAi(submittedId, current);
                   }}
                   className="rounded border border-[#172235] bg-white px-2 py-1 text-[10px] font-black uppercase text-[#172235] hover:bg-[#eee8dc]"
@@ -335,7 +356,7 @@ export default function ReportIncidentPage() {
               className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#172235] bg-white px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#172235] shadow-[3px_3px_0_#172235] transition hover:bg-[#eee8dc]"
             >
               <RotateCcw size={15} />
-              <span>Submit Another Incident</span>
+              <span>Request Another Certificate</span>
             </button>
           </div>
         </div>
@@ -345,13 +366,13 @@ export default function ReportIncidentPage() {
           {/* Header */}
           <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-6 py-4 text-white sm:px-8">
             <div className="flex items-center gap-2.5">
-              <FileWarning size={20} className="text-[#e8c878]" />
+              <Award size={20} className="text-[#e8c878]" />
               <span className="text-xs font-black uppercase tracking-[0.16em] text-[#e8c878]">
-                Form MUA-INC/01
+                Form MUA-CERT/01
               </span>
             </div>
             <span className="text-[10px] font-bold text-white/50 uppercase tracking-widest">
-              Classification: Inconvenient
+              Classification: Prestigious
             </span>
           </div>
 
@@ -362,136 +383,85 @@ export default function ReportIncidentPage() {
               </div>
             )}
 
-            {/* 1. Incident Title */}
+            {/* 1. Certificate Type */}
             <div>
-              <label
-                htmlFor="incident-title"
-                className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
-              >
-                1. Incident Title *
+              <label className="mb-2.5 block text-xs font-black uppercase tracking-wider text-[#172235]">
+                1. Select Desired Certificate Type *
               </label>
-              <input
-                id="incident-title"
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g., Someone misplaced the 3-hole puncher again"
-                required
-                disabled={loading}
-                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
-              />
-            </div>
-
-            {/* 2. Category */}
-            <div>
-              <label
-                htmlFor="incident-category"
-                className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
-              >
-                2. Incident Category *
-              </label>
-              <select
-                id="incident-category"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                disabled={loading}
-                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* 3. Description */}
-            <div>
-              <label
-                htmlFor="incident-description"
-                className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
-              >
-                3. Detailed Description *
-              </label>
-              <textarea
-                id="incident-description"
-                rows={4}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Provide unnecessarily thorough details about what transpired, who witnessed it, and why it is not at all critical."
-                required
-                disabled={loading}
-                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
-              />
-            </div>
-
-            {/* 4. Location */}
-            <div>
-              <label
-                htmlFor="incident-location"
-                className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
-              >
-                4. Location of Incident
-              </label>
-              <input
-                id="incident-location"
-                type="text"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g., Level 3 Breakroom, Desk 14, or General Vicinity"
-                disabled={loading}
-                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
-              />
-            </div>
-
-            {/* 5. Severity */}
-            <div>
-              <label className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]">
-                5. Bureaucratic Severity Level *
-              </label>
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                {SEVERITIES.map((s) => (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {CERTIFICATE_TYPES.map((c) => (
                   <label
-                    key={s.value}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 text-xs font-bold transition ${
-                      severity === s.value
-                        ? "border-[#9b1c31] bg-[#f5dfe3] text-[#9b1c31] shadow-[2px_2px_0_#9b1c31]"
-                        : "border-[#172235] bg-white text-[#172235] hover:bg-[#eee8dc]"
+                    key={c.type}
+                    className={`flex cursor-pointer flex-col justify-between rounded-xl border-2 p-3.5 transition ${
+                      selectedType === c.type
+                        ? "border-[#9b1c31] bg-[#fdf2f4] shadow-[3px_3px_0_#9b1c31]"
+                        : "border-[#172235] bg-white hover:bg-[#eee8dc]"
                     }`}
                   >
-                    <input
-                      type="radio"
-                      name="severity"
-                      value={s.value}
-                      checked={severity === s.value}
-                      onChange={(e) => setSeverity(e.target.value)}
-                      className="sr-only"
-                    />
-                    <span className="h-3 w-3 rounded-full border border-[#172235] bg-white flex items-center justify-center">
-                      {severity === s.value && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#9b1c31]" />
-                      )}
-                    </span>
-                    <span>{s.label}</span>
+                    <div className="flex items-start justify-between gap-2">
+                      <input
+                        type="radio"
+                        name="certificateType"
+                        value={c.type}
+                        checked={selectedType === c.type}
+                        onChange={(e) => setSelectedType(e.target.value)}
+                        className="sr-only"
+                      />
+                      <span className="font-serif text-sm font-black text-[#172235]">
+                        {c.type}
+                      </span>
+                      <span
+                        className={`mt-0.5 h-3.5 w-3.5 rounded-full border border-[#172235] flex items-center justify-center shrink-0 ${
+                          selectedType === c.type ? "bg-[#9b1c31]" : "bg-white"
+                        }`}
+                      >
+                        {selectedType === c.type && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                        )}
+                      </span>
+                    </div>
+                    <p className="mt-2 text-[11px] leading-4 text-[#687386]">
+                      {c.desc}
+                    </p>
                   </label>
                 ))}
               </div>
             </div>
 
-            {/* 6. Optional Additional Information */}
+            {/* 2. Purpose */}
             <div>
               <label
-                htmlFor="incident-notes"
+                htmlFor="cert-purpose"
                 className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
               >
-                6. Optional Additional Information
+                2. Purpose of Certification *
               </label>
               <textarea
-                id="incident-notes"
-                rows={2}
-                value={additionalInfo}
-                onChange={(e) => setAdditionalInfo(e.target.value)}
-                placeholder="Any further trivial circumstances, unrelated grievances, or officer recommendations."
+                id="cert-purpose"
+                rows={3}
+                value={purpose}
+                onChange={(e) => setPurpose(e.target.value)}
+                placeholder="Explain why you or someone else deserves this official certificate (e.g. 'I attended a meeting that could have been an email', 'Personal amusement')."
+                required
+                disabled={loading}
+                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
+              />
+            </div>
+
+            {/* 3. Additional Notes */}
+            <div>
+              <label
+                htmlFor="cert-notes"
+                className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
+              >
+                3. Additional Notes / Dedication
+              </label>
+              <input
+                id="cert-notes"
+                type="text"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g., 'Presented with mild reluctance by the Ministry'"
                 disabled={loading}
                 className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
               />
@@ -507,8 +477,8 @@ export default function ReportIncidentPage() {
                 <Send size={15} />
                 <span>
                   {loading
-                    ? "Lodging Official Report..."
-                    : "Submit Incident to Ministry →"}
+                    ? "Submitting to Board of Honors..."
+                    : "Lodge Certificate Request →"}
                 </span>
               </button>
             </div>

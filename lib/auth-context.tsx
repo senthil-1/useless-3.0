@@ -37,26 +37,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [citizen, setCitizen] = useState<CitizenData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchCitizen = async (uid: string) => {
-    try {
-      const snap = await getDoc(doc(db, "citizens", uid));
-      if (snap.exists()) {
-        setCitizen(snap.data() as CitizenData);
-      }
-    } catch (e) {
-      console.error("Failed to fetch citizen data:", e);
+  const buildFallbackCitizen = (firebaseUser: User): CitizenData => {
+    let hash = 0;
+    for (let i = 0; i < firebaseUser.uid.length; i++) {
+      hash = (hash * 31 + firebaseUser.uid.charCodeAt(i)) % 900000;
     }
+    const citizenNum = 100000 + Math.abs(hash);
+
+    return {
+      uid: firebaseUser.uid,
+      fullName: firebaseUser.displayName || firebaseUser.email?.split("@")[0] || "Distinguished Citizen",
+      email: firebaseUser.email || "",
+      citizenId: `MUA-${new Date().getFullYear()}-${citizenNum}`,
+      citizenshipStatus: "Active",
+      joinedAt: new Date().toISOString(),
+      uselessPoints: 0,
+      rank: "Probationary Citizen",
+      applicationCount: 0,
+    };
+  };
+
+  const fetchCitizen = (firebaseUser: User) => {
+    const uid = firebaseUser.uid;
+
+    // 1. Immediately read from localStorage or fallback for 0ms latency
+    let currentCitizen: CitizenData = buildFallbackCitizen(firebaseUser);
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`mua_citizen_${uid}`);
+        if (cached) {
+          currentCitizen = JSON.parse(cached);
+        }
+      } catch {
+        // Fallback already assigned
+      }
+    }
+    setCitizen(currentCitizen);
+
+    // 2. Fetch from Firestore in the background without blocking the UI
+    getDoc(doc(db, "citizens", uid))
+      .then((snap) => {
+        if (snap && snap.exists()) {
+          const data = snap.data() as CitizenData;
+          setCitizen(data);
+          if (typeof window !== "undefined") {
+            localStorage.setItem(`mua_citizen_${uid}`, JSON.stringify(data));
+          }
+        }
+      })
+      .catch(() => {
+        // Firestore may not be initialized or offline; fallback is already displayed
+      });
   };
 
   const refreshCitizen = async () => {
-    if (user) await fetchCitizen(user.uid);
+    if (user) fetchCitizen(user);
   };
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
+    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        await fetchCitizen(firebaseUser.uid);
+        fetchCitizen(firebaseUser);
       } else {
         setCitizen(null);
       }

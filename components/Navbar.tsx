@@ -25,7 +25,7 @@ export default function Navbar() {
   const handleLogout = async () => {
     try {
       await signOut(auth);
-      router.replace("/login");
+      window.location.href = "/login";
     } catch (e) {
       console.error("Logout error:", e);
     }

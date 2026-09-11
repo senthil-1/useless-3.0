@@ -29,10 +29,15 @@ function NotificationsPage() {
       where("userId", "==", user.uid),
       orderBy("createdAt", "desc")
     );
-    getDocs(q).then((snap) => {
-      setNotifs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Notification)));
-      setLoading(false);
-    });
+    getDocs(q)
+      .then((snap) => {
+        setNotifs(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Notification)));
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn("Notifications: Could not fetch:", err);
+        setLoading(false);
+      });
   }, [user]);
 
   const markRead = async (id: string) => {

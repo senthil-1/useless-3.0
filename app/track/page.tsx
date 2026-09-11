@@ -39,10 +39,15 @@ function TrackPage() {
       where("userId", "==", user.uid),
       orderBy("createdAt", "desc")
     );
-    getDocs(q).then((snap) => {
-      setApps(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Application)));
-      setLoading(false);
-    });
+    getDocs(q)
+      .then((snap) => {
+        setApps(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Application)));
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.warn("Track: Could not fetch applications:", err);
+        setLoading(false);
+      });
   }, [user]);
 
   return (

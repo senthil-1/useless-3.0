@@ -11,6 +11,7 @@ import {
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signOut,
 } from "firebase/auth";
 
 import { auth } from "@/lib/firebase";
@@ -157,6 +158,13 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, []);
 
+  /* Clear any lingering session when landing on login page */
+  useEffect(() => {
+    if (auth.currentUser) {
+      signOut(auth).catch(() => {});
+    }
+  }, []);
+
   const quote = ministryQuotes[quoteIndex];
 
   /* ============================================================
@@ -194,13 +202,13 @@ export default function LoginPage() {
 
       await signInWithEmailAndPassword(
         auth,
-        email.trim(),
+        email.trim().toLowerCase(),
         password
       );
 
       /* Login successful */
 
-      window.location.href = "/";
+      window.location.href = "/citizen-portal";
     } catch (error: any) {
       console.error(
         "Firebase Login Error:",
@@ -272,6 +280,9 @@ export default function LoginPage() {
 
       const provider =
         new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: "select_account",
+      });
 
       await signInWithPopup(
         auth,
@@ -280,7 +291,7 @@ export default function LoginPage() {
 
       /* Google login successful */
 
-      window.location.href = "/";
+      window.location.href = "/citizen-portal";
     } catch (error: any) {
       console.error(
         "Google Login Error:",

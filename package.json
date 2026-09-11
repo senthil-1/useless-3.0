@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/genai": "^2.22.0",
     "@hookform/resolvers": "latest",
     "firebase": "^12.19.0",
     "lucide-react": "^1.45.0",
@@ -16,7 +17,8 @@
     "react": "latest",
     "react-dom": "latest",
     "react-hook-form": "latest",
-    "zod": "latest"
+    "sharp": "^0.35.4",
+    "zod": "^4.6.2"
   },
   "devDependencies": {
     "@types/node": "latest",
