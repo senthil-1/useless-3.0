@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import AuthGuard from "@/components/AuthGuard";
 import { Crown, Trophy, Loader2 } from "lucide-react";
+import { getRank } from "@/lib/ranks";
 
 interface LeaderEntry {
   uid: string;
@@ -66,7 +67,7 @@ function LeaderboardPage() {
                     {row.fullName}
                     {isMe && <span className="text-[10px] font-bold bg-[#6f1020] text-white px-2 py-0.5 rounded-full">You</span>}
                   </div>
-                  <div className="text-sm text-slate-500 mt-0.5">{row.rank}</div>
+                  <div className="text-sm text-slate-500 mt-0.5">{getRank(row.uselessPoints ?? 0)}</div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className="font-black text-lg">{row.uselessPoints ?? 0}</div>

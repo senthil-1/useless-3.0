@@ -44,9 +44,9 @@ export default function AuthGuard({ children }: AuthGuardProps) {
    */
   if (checking && !user) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f4efe4] px-6">
-        <div className="w-full max-w-md rounded-3xl border border-[#d8cfbd] bg-[#fffaf0] p-8 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-4 border-[#172235] bg-[#9b1c31] text-sm font-black text-white">
+      <main className="flex min-h-screen items-center justify-center bg-[#f4efe4] px-4 sm:px-6 py-6">
+        <div className="w-full max-w-md rounded-3xl border border-[#d8cfbd] bg-[#fffaf0] p-6 sm:p-8 text-center shadow-sm">
+          <div className="mx-auto flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-full border-4 border-[#172235] bg-[#9b1c31] text-xs sm:text-sm font-black text-white">
             MUA
           </div>
 

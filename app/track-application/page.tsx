@@ -119,13 +119,13 @@ export default function TrackApplicationPage() {
             id: data.id || docSnap.id,
             type: "certificate",
             typeLabel: "Certificate Request",
-            title: data.certificateType || "Official Certificate",
+            title: data.certificateRequest || data.certificateTitle || data.certificateType || "Official Certificate",
             categoryOrPurpose: data.purpose || "Unspecified",
             status: data.status || "Submitted",
             department: data.department || "Department of Bureaucratic Affairs",
             finalDecision: data.finalDecision || "",
-            certificateTitle: data.certificateTitle || data.certificateType || "Certificate of Bureaucratic Excellence",
-            certificateValue: data.certificateValue || "EXTRAORDINARY BUREAUCRATIC PATIENCE",
+            certificateTitle: data.certificateTitle || data.certificateRequest || data.certificateType || "Certificate of Bureaucratic Excellence",
+            certificateValue: data.certificateValue || "EXTRAORDINARY BUREAUCRATIC RECOGNITION",
             aiProcessed: data.aiProcessed !== false,
             createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
             raw: data,
@@ -177,13 +177,13 @@ export default function TrackApplicationPage() {
                 id: cert.id,
                 type: "certificate",
                 typeLabel: "Certificate Request",
-                title: cert.certificateType || "Official Certificate",
+                title: cert.certificateRequest || cert.certificateTitle || cert.certificateType || "Official Certificate",
                 categoryOrPurpose: cert.purpose || "Unspecified",
                 status: cert.status || "Submitted",
                 department: cert.department || "Department of Bureaucratic Affairs",
                 finalDecision: cert.finalDecision || "",
-                certificateTitle: cert.certificateTitle || cert.certificateType || "Certificate of Bureaucratic Excellence",
-                certificateValue: cert.certificateValue || "EXTRAORDINARY BUREAUCRATIC PATIENCE",
+                certificateTitle: cert.certificateTitle || cert.certificateRequest || cert.certificateType || "Certificate of Bureaucratic Excellence",
+                certificateValue: cert.certificateValue || "EXTRAORDINARY BUREAUCRATIC RECOGNITION",
                 aiProcessed: cert.aiProcessed !== false,
                 createdAt: cert.createdAt ? new Date(cert.createdAt) : new Date(),
                 raw: cert,
@@ -385,8 +385,8 @@ export default function TrackApplicationPage() {
       maxWidth="max-w-5xl"
     >
       {/* FILTER BUTTONS */}
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex gap-2">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap gap-1.5 sm:gap-2">
           {(
             [
               ["all", "All Applications"],
@@ -398,7 +398,7 @@ export default function TrackApplicationPage() {
               key={key}
               type="button"
               onClick={() => setFilter(key)}
-              className={`rounded-lg border-2 px-3.5 py-1.5 text-xs font-black uppercase tracking-wider transition ${
+              className={`rounded-lg border-2 px-2.5 sm:px-3.5 py-1.5 text-[11px] sm:text-xs font-black uppercase tracking-wider transition ${
                 filter === key
                   ? "border-[#172235] bg-[#172235] text-white shadow-[2px_2px_0_#e8c878]"
                   : "border-[#172235] bg-[#fffaf0] text-[#172235] hover:bg-[#eee8dc]"
@@ -445,9 +445,9 @@ export default function TrackApplicationPage() {
               className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] shadow-[4px_4px_0_#172235] transition hover:shadow-[6px_6px_0_#172235] cursor-pointer"
             >
               {/* Card Header Strip */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#172235] bg-[#172235] px-6 py-2.5 text-white">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-black text-[#e8c878]">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b-2 border-[#172235] bg-[#172235] px-4 py-2 sm:px-6 sm:py-2.5 text-white">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono text-xs font-black text-[#e8c878] break-all">
                     {app.id}
                   </span>
                   <span className="text-[10px] text-white/50">•</span>
@@ -456,7 +456,7 @@ export default function TrackApplicationPage() {
                   </span>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 sm:gap-3">
                   <span className="text-[10px] font-bold text-white/60">
                     {app.createdAt instanceof Date
                       ? app.createdAt.toLocaleDateString("en-GB", {
@@ -471,7 +471,7 @@ export default function TrackApplicationPage() {
               </div>
 
               {/* Card Body */}
-              <div className="p-5 sm:p-6 space-y-3">
+              <div className="p-4 sm:p-6 space-y-3">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                   <div>
                     <h3 className="font-serif text-lg font-black text-[#172235]">
@@ -539,19 +539,19 @@ export default function TrackApplicationPage() {
                 )}
 
                 {/* Action Buttons Row */}
-                <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#d8cfbd]">
+                <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 border-t border-[#d8cfbd]">
                   <span className="text-[10px] font-bold text-[#687386]">
                     Click card to view full administrative dossier
                   </span>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                     {/* Retry AI button if failed */}
                     {app.aiProcessed === false && (
                       <button
                         type="button"
                         disabled={retryingId === app.id}
                         onClick={(e) => handleRetryAi(app, e)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#9b1c31] bg-[#fdf2f4] px-3 py-1.5 text-xs font-black uppercase tracking-wider text-[#9b1c31] shadow-[2px_2px_0_#9b1c31] hover:bg-[#f5dfe3]"
+                        className="inline-flex w-full sm:w-auto justify-center items-center gap-1.5 rounded-lg border-2 border-[#9b1c31] bg-[#fdf2f4] px-3 py-2 sm:py-1.5 text-xs font-black uppercase tracking-wider text-[#9b1c31] shadow-[2px_2px_0_#9b1c31] hover:bg-[#f5dfe3] min-h-[38px] sm:min-h-[auto]"
                       >
                         <RotateCcw size={12} className={retryingId === app.id ? "animate-spin" : ""} />
                         <span>{retryingId === app.id ? "Retrying..." : "Retry AI Processing"}</span>
@@ -563,7 +563,7 @@ export default function TrackApplicationPage() {
                       <button
                         type="button"
                         onClick={(e) => handleOpenCertificate(app, e)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#172235] bg-[#172235] px-3.5 py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-[2px_2px_0_#e8c878] transition hover:bg-[#9b1c31]"
+                        className="inline-flex w-full sm:w-auto justify-center items-center gap-1.5 rounded-lg border-2 border-[#172235] bg-[#172235] px-3.5 py-2 sm:py-1.5 text-xs font-black uppercase tracking-wider text-white shadow-[2px_2px_0_#e8c878] transition hover:bg-[#9b1c31] min-h-[38px] sm:min-h-[auto]"
                       >
                         <Award size={13} className="text-[#e8c878]" />
                         <span>Generate Certificate</span>
@@ -579,29 +579,29 @@ export default function TrackApplicationPage() {
 
       {/* DETAIL DOSSIER MODAL */}
       {selectedApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-lg overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] shadow-[10px_10px_0_#172235]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] shadow-[10px_10px_0_#172235] max-h-[90vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-6 py-4 text-white">
+            <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-4 py-3.5 sm:px-6 sm:py-4 text-white shrink-0">
               <div>
                 <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#e8c878]">
                   Official Case Dossier
                 </span>
-                <p className="font-mono text-sm font-black text-white">
+                <p className="font-mono text-sm font-black text-white break-all">
                   {selectedApp.id}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedApp(null)}
-                className="rounded-lg border border-white/20 p-1.5 text-white transition hover:bg-white/10"
+                className="rounded-lg border border-white/20 p-1.5 text-white transition hover:bg-white/10 shrink-0"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Modal Body */}
-            <div className="max-h-[70vh] overflow-y-auto p-6 space-y-4 text-xs">
+            <div className="overflow-y-auto p-4 sm:p-6 space-y-4 text-xs flex-1">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
                   Status:
@@ -680,6 +680,15 @@ export default function TrackApplicationPage() {
                 <>
                   <div className="border-t border-[#d8cfbd] pt-3">
                     <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
+                      Requested Certificate Concept:
+                    </span>
+                    <p className="font-medium text-xs text-[#172235] mt-0.5">
+                      {selectedApp.raw?.certificateRequest || selectedApp.raw?.certificateType || selectedApp.title}
+                    </p>
+                  </div>
+
+                  <div className="border-t border-[#d8cfbd] pt-3">
+                    <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
                       Certificate Title:
                     </span>
                     <p className="font-serif text-sm font-black text-[#172235] mt-0.5">
@@ -692,18 +701,29 @@ export default function TrackApplicationPage() {
                       Awarded Value:
                     </span>
                     <p className="font-serif text-sm font-black text-[#9b1c31] mt-0.5 tracking-wide">
-                      {selectedApp.certificateValue || "EXTRAORDINARY BUREAUCRATIC PATIENCE"}
+                      {selectedApp.certificateValue || "EXTRAORDINARY BUREAUCRATIC RECOGNITION"}
                     </p>
                   </div>
 
                   <div className="border-t border-[#d8cfbd] pt-3">
                     <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
-                      Purpose:
+                      Purpose / Justification:
                     </span>
                     <p className="mt-1 leading-5 text-[#172235] bg-[#f4efe4] p-3 rounded-lg border border-[#d8cfbd]">
                       {selectedApp.raw?.purpose || "Unspecified."}
                     </p>
                   </div>
+
+                  {selectedApp.raw?.notes && (
+                    <div className="border-t border-[#d8cfbd] pt-3">
+                      <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
+                        Additional Notes:
+                      </span>
+                      <p className="mt-1 leading-5 text-xs italic text-[#172235] bg-[#f4efe4] p-3 rounded-lg border border-[#d8cfbd]">
+                        {selectedApp.raw?.notes}
+                      </p>
+                    </div>
+                  )}
                 </>
               )}
 
@@ -716,7 +736,7 @@ export default function TrackApplicationPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="border-t-2 border-[#172235] bg-[#eee8dc] px-6 py-3 flex items-center justify-between">
+            <div className="border-t-2 border-[#172235] bg-[#eee8dc] px-4 py-3 sm:px-6 sm:py-3 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
               {(selectedApp.type === "certificate" || selectedApp.status.toLowerCase() === "approved") ? (
                 <button
                   type="button"
@@ -725,7 +745,7 @@ export default function TrackApplicationPage() {
                     setSelectedApp(null);
                     handleOpenCertificate(app);
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-lg border-2 border-[#172235] bg-[#172235] px-3.5 py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0_#e8c878]"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-[#172235] bg-[#172235] px-3.5 py-2 sm:py-1.5 text-xs font-black uppercase text-white shadow-[2px_2px_0_#e8c878] min-h-[38px] sm:min-h-[auto]"
                 >
                   <Award size={13} className="text-[#e8c878]" />
                   <span>Generate Certificate</span>
@@ -737,7 +757,7 @@ export default function TrackApplicationPage() {
               <button
                 type="button"
                 onClick={() => setSelectedApp(null)}
-                className="rounded-lg border-2 border-[#172235] bg-white px-4 py-1.5 text-xs font-black uppercase text-[#172235] shadow-[2px_2px_0_#172235]"
+                className="rounded-lg border-2 border-[#172235] bg-white px-4 py-2 sm:py-1.5 text-xs font-black uppercase text-[#172235] shadow-[2px_2px_0_#172235] min-h-[38px] sm:min-h-[auto]"
               >
                 Close Dossier
               </button>
@@ -748,17 +768,17 @@ export default function TrackApplicationPage() {
 
       {/* CERTIFICATE GENERATION & DOWNLOAD MODAL */}
       {activeCertApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] shadow-[12px_12px_0_#172235]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-3xl overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] shadow-[12px_12px_0_#172235] max-h-[92vh] flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-6 py-4 text-white">
+            <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-4 py-3 sm:px-6 sm:py-4 text-white shrink-0">
               <div className="flex items-center gap-2.5">
                 <Award size={20} className="text-[#e8c878]" />
                 <div>
                   <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#e8c878]">
                     Official Republic Document
                   </span>
-                  <h3 className="font-serif text-base font-black">
+                  <h3 className="font-serif text-sm sm:text-base font-black">
                     Official Certificate of Recognition
                   </h3>
                 </div>
@@ -771,20 +791,20 @@ export default function TrackApplicationPage() {
                   if (certImageUrl) URL.revokeObjectURL(certImageUrl);
                   setCertImageUrl(null);
                 }}
-                className="rounded-lg border border-white/20 p-1.5 text-white transition hover:bg-white/10"
+                className="rounded-lg border border-white/20 p-1.5 text-white transition hover:bg-white/10 shrink-0"
               >
                 <X size={18} />
               </button>
             </div>
 
             {/* Certificate Preview Body */}
-            <div className="p-6 text-center">
+            <div className="p-3 sm:p-6 text-center overflow-y-auto flex-1">
               {certLoading ? (
-                <div className="py-16">
+                <div className="py-12 sm:py-16">
                   <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#172235] bg-[#fffaf0] shadow-[3px_3px_0_#172235]">
                     <div className="h-7 w-7 animate-spin rounded-full border-3 border-[#9b1c31] border-t-transparent" />
                   </div>
-                  <p className="mt-4 font-serif text-lg font-bold text-[#172235]">
+                  <p className="mt-4 font-serif text-base sm:text-lg font-bold text-[#172235]">
                     Generating Certificate...
                   </p>
                   <p className="mt-1 text-xs text-[#687386]">
@@ -792,7 +812,7 @@ export default function TrackApplicationPage() {
                   </p>
                 </div>
               ) : certError ? (
-                <div className="py-12">
+                <div className="py-10 sm:py-12">
                   <AlertCircle size={36} className="mx-auto text-[#9b1c31]" />
                   <p className="mt-3 text-sm font-bold text-[#9b1c31]">{certError}</p>
                   <button
@@ -804,16 +824,16 @@ export default function TrackApplicationPage() {
                   </button>
                 </div>
               ) : certImageUrl ? (
-                <div className="space-y-4">
-                  <div className="relative overflow-hidden rounded-xl border-2 border-[#172235] shadow-[4px_4px_0_#172235]">
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="relative overflow-hidden rounded-xl border-2 border-[#172235] shadow-[4px_4px_0_#172235] bg-white">
                     <img
                       src={certImageUrl}
                       alt="Generated Certificate"
-                      className="w-full h-auto object-contain max-h-[60vh] bg-white"
+                      className="w-full h-auto object-contain max-h-[50vh] sm:max-h-[60vh] mx-auto"
                     />
                   </div>
 
-                  <p className="text-[11px] text-[#687386] italic">
+                  <p className="text-[10px] sm:text-[11px] text-[#687386] italic">
                     Awarded by the Ministry of Useless Affairs · Case Reference: {activeCertApp.id}
                   </p>
                 </div>
@@ -821,17 +841,17 @@ export default function TrackApplicationPage() {
             </div>
 
             {/* Modal Actions */}
-            <div className="border-t-2 border-[#172235] bg-[#eee8dc] px-6 py-4 flex flex-wrap items-center justify-between gap-3">
-              <span className="text-xs font-bold text-[#687386]">
+            <div className="border-t-2 border-[#172235] bg-[#eee8dc] px-4 py-3 sm:px-6 sm:py-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 shrink-0">
+              <span className="text-[10px] sm:text-xs font-bold text-[#687386] text-center sm:text-left">
                 Format: High Resolution PNG (1536 × 1024)
               </span>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                 {certImageUrl && (
                   <button
                     type="button"
                     onClick={handleDownloadCertificate}
-                    className="inline-flex items-center gap-2 rounded-lg border-2 border-[#172235] bg-[#9b1c31] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-[3px_3px_0_#172235] transition hover:bg-[#801426]"
+                    className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#172235] bg-[#9b1c31] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-[3px_3px_0_#172235] transition hover:bg-[#801426] min-h-[44px] sm:min-h-[auto]"
                   >
                     <Download size={15} />
                     <span>Download Certificate</span>
@@ -845,7 +865,7 @@ export default function TrackApplicationPage() {
                     if (certImageUrl) URL.revokeObjectURL(certImageUrl);
                     setCertImageUrl(null);
                   }}
-                  className="rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-xs font-black uppercase text-[#172235] shadow-[2px_2px_0_#172235] hover:bg-[#f4efe4]"
+                  className="rounded-lg border-2 border-[#172235] bg-white px-4 py-2 sm:py-2.5 text-xs font-black uppercase text-[#172235] shadow-[2px_2px_0_#172235] hover:bg-[#f4efe4] min-h-[40px] sm:min-h-[auto]"
                 >
                   Close
                 </button>

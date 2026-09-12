@@ -27,9 +27,9 @@ export default function CitizenPortalPage() {
       maxWidth="max-w-6xl"
     >
       {/* Cards layout: 2x2 grid for first 4, 5th centered underneath */}
-      <div className="mt-8 space-y-6">
-        {/* First 4 cards in 2x2 grid */}
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+      <div className="mt-6 sm:mt-8 space-y-4 sm:space-y-6">
+        {/* First 4 cards in 2x2 grid on desktop, 1 col on mobile */}
+        <div className="grid grid-cols-1 gap-4 sm:gap-6 md:grid-cols-2">
           {/* 1. REPORT INCIDENT */}
           <ServiceCard
             icon={FileWarning}

@@ -4,9 +4,10 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, UserRound, Award, FileWarning, Medal, Edit3, Save, X } from "lucide-react";
 import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import AuthGuard from "@/components/AuthGuard";
+import { getRank } from "@/lib/ranks";
 
 function ProfilePage() {
   const { user, citizen, refreshCitizen } = useAuth();
@@ -102,7 +103,7 @@ function ProfilePage() {
           {/* Rank */}
           <div className="mt-4 p-4 rounded-xl bg-[#f1eee7] border border-[#ded6c9]">
             <div className="text-[10px] uppercase tracking-[.16em] text-slate-500 font-bold">Current Rank</div>
-            <div className="serif text-xl mt-1">{citizen?.rank || "Probationary Citizen"}</div>
+            <div className="serif text-xl mt-1">{getRank(citizen?.uselessPoints ?? 0)}</div>
             <div className="text-sm mt-1 font-bold text-[#6f1020]">{citizen?.uselessPoints || 0} Useless Points</div>
           </div>
 
@@ -155,7 +156,7 @@ function ProfilePage() {
                 ["Citizenship Status", citizen?.citizenshipStatus || "Active"],
                 ["Member Since", citizen?.joinedAt ? new Date(citizen.joinedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—"],
                 ["Useless Points", `${citizen?.uselessPoints || 0} pts`],
-                ["Current Rank", citizen?.rank || "Probationary Citizen"],
+                ["Current Rank", getRank(citizen?.uselessPoints ?? 0)],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between items-start py-2.5 border-b border-[#ede8df] last:border-0">
                   <span className="text-xs font-bold uppercase tracking-wider text-slate-400 w-40 shrink-0">{label}</span>

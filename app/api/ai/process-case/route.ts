@@ -110,31 +110,59 @@ export async function POST(req: Request) {
     // 6. Build Controlled Gemini Prompt
     const gemini = getGeminiClient();
 
-    const systemInstruction = `You are the official AI administrative processor of the fictional Ministry of Useless Affairs.
-You process citizen cases involving unnecessary incidents, minor inconveniences, bureaucratic confusion, and requests for unnecessary certificates.
+    const isCertificate = caseType === "certificate";
+    const certRequestConcept =
+      caseData.certificateRequest || caseData.certificateType || caseData.title || "Custom Bureaucratic Certificate";
+
+    const systemInstruction = `You are the official AI administrative processor of the fictional Ministry of Useless Affairs (MUA).
+You process citizen cases involving unnecessary incidents, minor inconveniences, bureaucratic confusion, and requests for custom certificates.
 Use professional government terminology with subtle bureaucratic humor.
 You MUST return valid JSON matching the supplied schema.
-Choose exactly one department from this allowed list:
+
+ALLOWED DEPARTMENTS (choose exactly one):
 ${ALLOWED_DEPARTMENTS.map((d) => `- "${d}"`).join("\n")}
 
-Choose exactly one status from this allowed list:
+ALLOWED STATUSES (choose exactly one):
 ${ALLOWED_STATUSES.map((s) => `- "${s}"`).join("\n")}
 
-Write a concise but entertaining final bureaucratic decision (2-3 sentences max).
+CRITICAL RULES FOR CERTIFICATE REQUESTS:
+- The citizen can enter ANY custom, free-form certificate request they want.
+- Do NOT compare the request against a fixed or predefined list of certificate types.
+- Do NOT reject or question the request simply because it is not in a predefined category. The citizen's imagination is the sole source of the certificate topic.
+- Understand the citizen's intent and generate appropriate mock-serious bureaucratic content.
+- For certificate requests, always set status to "Approved" unless completely nonsensical or harmful.
+- "certificateTitle": Synthesize a prestigious, official-sounding certificate title derived directly from the citizen's request (e.g., "Certificate of Academic Survival", "Certificate of Unnecessary Participation", "Certificate of Extreme Patience").
+- "certificateValue": Synthesize a SHORT, prestigious-sounding, humorous, UPPERCASE awarded value (STRICTLY 15-40 CHARACTERS MAXIMUM) suitable for engraving directly onto an official certificate (e.g. "EXTRAORDINARY FOUR-YEAR SURVIVAL", "DISTINGUISHED MEETING ATTENDANCE", "OUTSTANDING USELESS ENDURANCE", "SUPREME BUREAUCRATIC COMPLIANCE"). Do NOT generate a sentence or long paragraph. Keep it concise so it fits the certificate design.
+- "finalDecision": Write a 2-3 sentence mock-serious government decision statement explaining why the Ministry officially grants or recognizes this accomplishment.
+
 Do not invent citizen identity information, citizen IDs, or case IDs.
 Do not modify user identity, citizenship status, rank, or useless points.
-Do not include markdown or text outside the JSON.
-For certificate requests, generate an appropriate certificate title and concise certificate value (e.g. "EXTRAORDINARY BUREAUCRATIC PATIENCE", "LEVEL IV ADMINISTRATIVE ENDURANCE").
-For incident cases, assign an appropriate department and status (e.g. Under Review or Escalated) and a fitting certificate title/value.
-The result should sound like an unnecessarily serious government decision.`;
+Do not include markdown or text outside the JSON.`;
 
-    const userPrompt = `PROCESS THIS OFFICIAL CITIZEN CASE:
+    const userPrompt = isCertificate
+      ? `PROCESS THIS OFFICIAL CITIZEN CERTIFICATE REQUEST:
 Case ID: ${caseId}
-Case Type: ${caseType === "incident" ? "Incident Report" : "Certificate Request"}
 Citizen Name: ${caseData.citizenName || authUser.displayName || "Distinguished Citizen"}
-Title/Type: ${caseData.title || caseData.certificateType || "Untitled Case"}
-Category/Purpose: ${caseData.category || caseData.purpose || "General Bureaucratic Affair"}
-Description/Notes: ${caseData.description || caseData.notes || "No additional commentary provided."}
+Certificate Request: "${certRequestConcept}"
+Purpose / Justification: "${caseData.purpose || "Official recognition requested."}"
+Additional Notes: "${caseData.notes || "None"}"
+
+Analyze the citizen's custom certificate concept, select the most amusingly fitting Department from the allowed list, approve the request, formulate a prestigious Certificate Title, a concise uppercase Certificate Value (max 40 chars), and a 2-3 sentence final bureaucratic decision.
+
+Return JSON conforming strictly to:
+{
+  "department": "One of the allowed departments exactly",
+  "status": "Approved",
+  "finalDecision": "Concise official government decision statement",
+  "certificateTitle": "Official certificate title (e.g. Certificate of Academic Survival)",
+  "certificateValue": "SHORT UPPERCASE AWARDED VALUE (max 40 chars)"
+}`
+      : `PROCESS THIS OFFICIAL CITIZEN INCIDENT REPORT:
+Case ID: ${caseId}
+Citizen Name: ${caseData.citizenName || authUser.displayName || "Distinguished Citizen"}
+Incident Title: ${caseData.title || "Untitled Case"}
+Category: ${caseData.category || "General Bureaucratic Affair"}
+Description: ${caseData.description || "No description provided."}
 Severity: ${caseData.severity || "Moderate"}
 Location: ${caseData.location || "General Vicinity"}
 
@@ -188,17 +216,20 @@ Return JSON conforming strictly to:
     const certificateTitle =
       parsed.certificateTitle?.trim() ||
       (caseType === "certificate"
-        ? caseData.certificateType || "Certificate of Bureaucratic Excellence"
+        ? caseData.certificateRequest || caseData.certificateType || "Certificate of Bureaucratic Excellence"
         : "Certificate of Administrative Endurance");
 
     const certificateValue = (
-      parsed.certificateValue?.trim() || "EXTRAORDINARY BUREAUCRATIC ENDURANCE"
+      parsed.certificateValue?.trim() || "EXTRAORDINARY BUREAUCRATIC RECOGNITION"
     )
       .toUpperCase()
-      .slice(0, 50);
+      .replace(/[\n\r]+/g, " ")
+      .slice(0, 45);
 
     const updatedData = {
       ...caseData,
+      certificateRequest: caseData.certificateRequest || caseData.certificateType || certRequestConcept,
+      certificateType: caseData.certificateType || caseData.certificateRequest || certRequestConcept,
       department,
       status,
       finalDecision,

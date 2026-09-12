@@ -2,10 +2,11 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, onSnapshot, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { getRank, calculateCitizenStats } from "@/lib/ranks";
 
-interface CitizenData {
+export interface CitizenData {
   uid: string;
   fullName: string;
   email: string;
@@ -23,6 +24,7 @@ interface AuthContextType {
   citizen: CitizenData | null;
   loading: boolean;
   refreshCitizen: () => Promise<void>;
+  recordApplicationSubmission: (appCountDelta?: number, pointsDelta?: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -30,6 +32,7 @@ const AuthContext = createContext<AuthContextType>({
   citizen: null,
   loading: true,
   refreshCitizen: async () => {},
+  recordApplicationSubmission: () => {},
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -52,63 +55,209 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       citizenshipStatus: "Active",
       joinedAt: new Date().toISOString(),
       uselessPoints: 0,
-      rank: "Probationary Citizen",
+      rank: getRank(0),
       applicationCount: 0,
     };
   };
 
-  const fetchCitizen = (firebaseUser: User) => {
-    const uid = firebaseUser.uid;
+  const recordApplicationSubmission = (appCountDelta: number = 1, pointsDelta: number = 10) => {
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+    setCitizen((prev) => {
+      const base = prev || buildFallbackCitizen(currentUser);
+      const nextPts = (base.uselessPoints || 0) + pointsDelta;
+      const nextApps = (base.applicationCount || 0) + appCountDelta;
+      const nextRank = getRank(nextPts);
 
-    // 1. Immediately read from localStorage or fallback for 0ms latency
-    let currentCitizen: CitizenData = buildFallbackCitizen(firebaseUser);
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem(`mua_citizen_${uid}`);
-        if (cached) {
-          currentCitizen = JSON.parse(cached);
-        }
-      } catch {
-        // Fallback already assigned
+      const updated: CitizenData = {
+        ...base,
+        applicationCount: nextApps,
+        uselessPoints: nextPts,
+        rank: nextRank,
+      };
+
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem(`mua_citizen_${currentUser.uid}`, JSON.stringify(updated));
+        } catch {}
       }
-    }
-    setCitizen(currentCitizen);
-
-    // 2. Fetch from Firestore in the background without blocking the UI
-    getDoc(doc(db, "citizens", uid))
-      .then((snap) => {
-        if (snap && snap.exists()) {
-          const data = snap.data() as CitizenData;
-          setCitizen(data);
-          if (typeof window !== "undefined") {
-            localStorage.setItem(`mua_citizen_${uid}`, JSON.stringify(data));
-          }
-        }
-      })
-      .catch(() => {
-        // Firestore may not be initialized or offline; fallback is already displayed
-      });
+      return updated;
+    });
   };
 
   const refreshCitizen = async () => {
-    if (user) fetchCitizen(user);
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
+
+    try {
+      const snap = await getDoc(doc(db, "citizens", currentUser.uid));
+      if (snap.exists()) {
+        const data = snap.data() as CitizenData;
+        const stats = calculateCitizenStats(currentUser.uid, data);
+        const merged: CitizenData = {
+          ...data,
+          applicationCount: stats.applicationCount,
+          uselessPoints: stats.uselessPoints,
+          rank: stats.rank,
+        };
+        setCitizen(merged);
+        if (data.rank !== stats.rank) {
+          updateDoc(doc(db, "citizens", currentUser.uid), {
+            rank: stats.rank,
+          }).catch(() => {});
+        }
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.setItem(`mua_citizen_${currentUser.uid}`, JSON.stringify(merged));
+          } catch {}
+        }
+        return;
+      }
+    } catch (e) {
+      console.warn("Could not refresh citizen document from Firestore:", e);
+    }
+
+    // Fallback reconciliation if Firestore query was blocked or returned empty
+    if (typeof window !== "undefined") {
+      try {
+        let base = buildFallbackCitizen(currentUser);
+        const cached = localStorage.getItem(`mua_citizen_${currentUser.uid}`);
+        if (cached) {
+          base = { ...base, ...JSON.parse(cached) };
+        }
+        const stats = calculateCitizenStats(currentUser.uid, base);
+        const reconciled: CitizenData = {
+          ...base,
+          applicationCount: stats.applicationCount,
+          uselessPoints: stats.uselessPoints,
+          rank: stats.rank,
+        };
+        setCitizen(reconciled);
+        localStorage.setItem(`mua_citizen_${currentUser.uid}`, JSON.stringify(reconciled));
+      } catch {}
+    }
   };
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+    let citizenUnsub: (() => void) | null = null;
+
+    const authUnsub = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
+
+      if (citizenUnsub) {
+        citizenUnsub();
+        citizenUnsub = null;
+      }
+
       if (firebaseUser) {
-        fetchCitizen(firebaseUser);
+        // Fallback or cached representation reconciled with any local submissions
+        let initialCitizen = buildFallbackCitizen(firebaseUser);
+        if (typeof window !== "undefined") {
+          try {
+            const cached = localStorage.getItem(`mua_citizen_${firebaseUser.uid}`);
+            if (cached) {
+              initialCitizen = { ...initialCitizen, ...JSON.parse(cached) };
+            }
+          } catch {}
+        }
+        const stats = calculateCitizenStats(firebaseUser.uid, initialCitizen);
+        initialCitizen = {
+          ...initialCitizen,
+          applicationCount: stats.applicationCount,
+          uselessPoints: stats.uselessPoints,
+          rank: stats.rank,
+        };
+        setCitizen(initialCitizen);
+
+        // Real-time listener for Firestore citizen document
+        const citizenRef = doc(db, "citizens", firebaseUser.uid);
+        citizenUnsub = onSnapshot(
+          citizenRef,
+          async (snap) => {
+            if (snap.exists()) {
+              const data = snap.data() as CitizenData;
+              const liveStats = calculateCitizenStats(firebaseUser.uid, data);
+              const merged: CitizenData = {
+                ...buildFallbackCitizen(firebaseUser),
+                ...data,
+                applicationCount: liveStats.applicationCount,
+                uselessPoints: liveStats.uselessPoints,
+                rank: liveStats.rank,
+              };
+              setCitizen(merged);
+              if (data.rank !== liveStats.rank) {
+                updateDoc(citizenRef, {
+                  rank: liveStats.rank,
+                }).catch(() => {});
+              }
+              if (typeof window !== "undefined") {
+                try {
+                  localStorage.setItem(`mua_citizen_${firebaseUser.uid}`, JSON.stringify(merged));
+                } catch {}
+              }
+            } else {
+              // Initialize document in Firestore if it doesn't exist yet
+              const initStats = calculateCitizenStats(firebaseUser.uid, null);
+              const newCitizen: CitizenData = {
+                ...buildFallbackCitizen(firebaseUser),
+                applicationCount: initStats.applicationCount,
+                uselessPoints: initStats.uselessPoints,
+                rank: initStats.rank,
+              };
+              try {
+                await setDoc(citizenRef, {
+                  ...newCitizen,
+                  createdAt: serverTimestamp(),
+                });
+              } catch (initErr) {
+                console.warn("Could not initialize citizen in Firestore:", initErr);
+              }
+              setCitizen(newCitizen);
+              if (typeof window !== "undefined") {
+                try {
+                  localStorage.setItem(`mua_citizen_${firebaseUser.uid}`, JSON.stringify(newCitizen));
+                } catch {}
+              }
+            }
+            setLoading(false);
+          },
+          (err) => {
+            console.warn("Citizen snapshot listener error:", err);
+            if (typeof window !== "undefined") {
+              try {
+                let active = buildFallbackCitizen(firebaseUser);
+                const cached = localStorage.getItem(`mua_citizen_${firebaseUser.uid}`);
+                if (cached) {
+                  active = { ...active, ...JSON.parse(cached) };
+                }
+                const errStats = calculateCitizenStats(firebaseUser.uid, active);
+                const reconciled: CitizenData = {
+                  ...active,
+                  applicationCount: errStats.applicationCount,
+                  uselessPoints: errStats.uselessPoints,
+                  rank: errStats.rank,
+                };
+                setCitizen(reconciled);
+                localStorage.setItem(`mua_citizen_${firebaseUser.uid}`, JSON.stringify(reconciled));
+              } catch {}
+            }
+            setLoading(false);
+          }
+        );
       } else {
         setCitizen(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return () => unsub();
+
+    return () => {
+      if (citizenUnsub) citizenUnsub();
+      authUnsub();
+    };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, citizen, loading, refreshCitizen }}>
+    <AuthContext.Provider value={{ user, citizen, loading, refreshCitizen, recordApplicationSubmission }}>
       {children}
     </AuthContext.Provider>
   );

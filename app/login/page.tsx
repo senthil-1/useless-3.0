@@ -14,7 +14,9 @@ import {
   signOut,
 } from "firebase/auth";
 
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { getRank } from "@/lib/ranks";
 
 /* ============================================================
    MINISTRY QUOTES
@@ -284,10 +286,52 @@ export default function LoginPage() {
         prompt: "select_account",
       });
 
-      await signInWithPopup(
+      const result = await signInWithPopup(
         auth,
         provider
       );
+
+      /* Ensure citizen document exists in Firestore for Google accounts */
+      const user = result.user;
+      if (user) {
+        try {
+          const citizenRef = doc(db, "citizens", user.uid);
+          const snap = await getDoc(citizenRef);
+          if (!snap.exists()) {
+            let hash = 0;
+            for (let i = 0; i < user.uid.length; i++) {
+              hash = (hash * 31 + user.uid.charCodeAt(i)) % 900000;
+            }
+            const citizenNum = 100000 + Math.abs(hash);
+            const citizenData = {
+              uid: user.uid,
+              fullName: user.displayName || user.email?.split("@")[0] || "Distinguished Citizen",
+              email: user.email || "",
+              citizenId: `MUA-${new Date().getFullYear()}-${citizenNum}`,
+              citizenshipStatus: "Active",
+              joinedAt: new Date().toISOString(),
+              uselessPoints: 0,
+              rank: getRank(0),
+              applicationCount: 0,
+            };
+
+            if (typeof window !== "undefined") {
+              try {
+                if (!localStorage.getItem(`mua_citizen_${user.uid}`)) {
+                  localStorage.setItem(`mua_citizen_${user.uid}`, JSON.stringify(citizenData));
+                }
+              } catch {}
+            }
+
+            await setDoc(citizenRef, {
+              ...citizenData,
+              createdAt: serverTimestamp(),
+            });
+          }
+        } catch (initErr) {
+          console.warn("Could not ensure Google citizen doc in Firestore:", initErr);
+        }
+      }
 
       /* Google login successful */
 
@@ -441,16 +485,16 @@ export default function LoginPage() {
             <img
               src="/mua-logo.png"
               alt="Ministry of Useless Affairs"
-              className="h-[60px] w-[60px] shrink-0 object-contain"
+              className="h-10 w-10 shrink-0 object-contain sm:h-[60px] sm:w-[60px]"
             />
 
             <div className="min-w-0">
 
-              <p className="truncate text-[8px] font-black uppercase tracking-[0.18em] text-[#9b1c31]">
+              <p className="truncate text-[8px] font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-[#9b1c31]">
                 Republic of Questionable Decisions
               </p>
 
-              <h1 className="whitespace-nowrap font-serif text-[18px] font-black uppercase tracking-wide text-[#172235] sm:text-xl">
+              <h1 className="truncate font-serif text-[15px] font-black uppercase tracking-normal sm:tracking-wide text-[#172235] sm:text-xl">
                 Ministry of Useless Affairs
               </h1>
 
@@ -480,9 +524,9 @@ export default function LoginPage() {
           MAIN CONTENT
       ======================================================== */}
 
-      <section className="absolute bottom-0 left-0 right-0 top-[113px] overflow-hidden">
+      <section className="relative lg:absolute lg:bottom-0 lg:left-0 lg:right-0 lg:top-[113px] overflow-y-auto lg:overflow-hidden py-6 sm:py-10 lg:py-0">
 
-        <div className="mx-auto grid h-full max-w-[1500px] grid-cols-1 items-center gap-8 px-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_450px] lg:gap-12 lg:px-10">
+        <div className="mx-auto grid min-h-full lg:h-full max-w-[1500px] grid-cols-1 items-center gap-8 px-4 sm:px-8 lg:grid-cols-[minmax(0,1fr)_450px] lg:gap-12 lg:px-10">
 
           {/* ====================================================
               LEFT SIDE
@@ -656,13 +700,13 @@ export default function LoginPage() {
                   CARD HEADER
               ================================================= */}
 
-              <div className="border-b-2 border-[#172235] bg-[#172235] px-7 py-5 text-white sm:px-8">
+              <div className="border-b-2 border-[#172235] bg-[#172235] px-5 py-4 text-white sm:px-8 sm:py-5">
 
                 <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#e8c878]">
                   Form MUA-LOGIN/01
                 </p>
 
-                <h3 className="mt-1 font-serif text-[29px] font-black sm:text-[32px]">
+                <h3 className="mt-1 font-serif text-[26px] font-black sm:text-[32px]">
                   Citizen Login
                 </h3>
 
@@ -672,7 +716,7 @@ export default function LoginPage() {
                   CARD BODY
               ================================================= */}
 
-              <div className="px-7 py-6 sm:px-8 sm:py-7">
+              <div className="px-5 py-5 sm:px-8 sm:py-7">
 
                 <form onSubmit={handleLogin}>
 

@@ -19,6 +19,8 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 body {
@@ -26,6 +28,8 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: 'DM Sans', sans-serif;
+  overflow-x: hidden;
+  max-width: 100%;
 }
 
 .serif {

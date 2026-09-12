@@ -70,9 +70,10 @@ export async function GET(req: NextRequest) {
     const rawValue =
       caseData?.certificateValue ||
       clientVal ||
-      (caseData?.certificateType
-        ? `${caseData.certificateType.toUpperCase()}`
-        : "EXTRAORDINARY BUREAUCRATIC EXCELLENCE");
+      caseData?.certificateTitle ||
+      caseData?.certificateRequest ||
+      caseData?.certificateType ||
+      "EXTRAORDINARY BUREAUCRATIC EXCELLENCE";
 
     const certificateValue = rawValue.toUpperCase();
 

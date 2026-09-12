@@ -21,13 +21,11 @@ service cloud.firestore {
       allow create: if isOwner(uid) && request.resource.data.uid == uid;
 
       // Updating citizen profile:
-      // Citizens can update non-sensitive fields (fullName, dateOfBirth, applicationCount)
-      // but CANNOT change citizenId, rank, uselessPoints, or citizenshipStatus
+      // Citizens can update profile fields, applicationCount, uselessPoints, and rank
+      // Protected fields: citizenId and citizenshipStatus cannot be altered
       allow update: if isOwner(uid)
-        && request.resource.data.citizenId == resource.data.citizenId
-        && request.resource.data.rank == resource.data.rank
-        && request.resource.data.uselessPoints == resource.data.uselessPoints
-        && request.resource.data.citizenshipStatus == resource.data.citizenshipStatus;
+        && (!('citizenId' in resource.data) || request.resource.data.citizenId == resource.data.citizenId)
+        && (!('citizenshipStatus' in resource.data) || request.resource.data.citizenshipStatus == resource.data.citizenshipStatus);
 
       allow delete: if false;
     }
@@ -35,7 +33,7 @@ service cloud.firestore {
     // 2. Incidents collection: incidents/{incidentId}
     match /incidents/{incidentId} {
       // Citizens can read and create their own incident reports
-      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       // Allow AI assessment and status updates for the owning citizen
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
@@ -47,7 +45,7 @@ service cloud.firestore {
     // 3. Certificate Requests: certificateRequests/{requestId}
     match /certificateRequests/{requestId} {
       // Citizens can read and create their own certificate requests
-      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       // Allow AI assessment updates for the owning citizen
       allow update: if isAuthenticated() && resource.data.userId == request.auth.uid
@@ -70,7 +68,10 @@ service cloud.firestore {
     match /notices/{noticeId} {
       // Public notices are readable by any authenticated citizen
       allow read: if isAuthenticated();
-      allow write: if false; // Only Ministry Admins via Firebase Console
+      // Only Ministry authorized seed mechanism or console admins
+      allow create, update: if isAuthenticated()
+        && request.resource.data.adminSecret == "MUA-OFFICIAL-ADMIN-SECRET-2026";
+      allow delete: if false;
     }
   }
 }

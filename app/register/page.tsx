@@ -29,13 +29,7 @@ function generateCitizenId(): string {
    CITIZEN RANK
    ============================================================ */
 
-function getRank(points: number): string {
-  if (points >= 500) return "Supreme Bureaucratic Entity";
-  if (points >= 300) return "Senior Paperwork Specialist";
-  if (points >= 150) return "Certified Time Waster";
-  if (points >= 50) return "Junior Administrative Burden";
-  return "Probationary Citizen";
-}
+import { getRank } from "@/lib/ranks";
 
 /* ============================================================
    REGISTER PAGE
@@ -208,13 +202,16 @@ export default function RegisterPage() {
         }
       }
 
-      // Sync with Firestore in the background without blocking the user
-      Promise.all([
-        setDoc(doc(db, "citizens", uid), citizenData),
-        setDoc(doc(db, "notifications", `${uid}_welcome`), notificationData),
-      ])
-        .then(() => console.log("MUA — Firestore documents synced."))
-        .catch((err) => console.warn("MUA — Background Firestore sync delayed/unavailable:", err));
+      // Sync with Firestore before redirecting to guarantee the document exists
+      try {
+        await Promise.all([
+          setDoc(doc(db, "citizens", uid), citizenData),
+          setDoc(doc(db, "notifications", `${uid}_welcome`), notificationData),
+        ]);
+        console.log("MUA — Firestore citizen documents confirmed.");
+      } catch (err) {
+        console.warn("MUA — Background Firestore sync delayed/unavailable:", err);
+      }
 
       console.log("MUA — Registration completed.");
 
@@ -350,16 +347,16 @@ export default function RegisterPage() {
             <img
               src="/mua-logo.png"
               alt="Ministry of Useless Affairs"
-              className="h-[60px] w-[60px] shrink-0 object-contain"
+              className="h-10 w-10 shrink-0 object-contain sm:h-[60px] sm:w-[60px]"
             />
 
             <div className="min-w-0">
 
-              <p className="truncate text-[8px] font-black uppercase tracking-[0.18em] text-[#9b1c31]">
+              <p className="truncate text-[8px] font-black uppercase tracking-[0.12em] sm:tracking-[0.18em] text-[#9b1c31]">
                 Republic of Questionable Decisions
               </p>
 
-              <h1 className="whitespace-nowrap font-serif text-[18px] font-black uppercase tracking-wide text-[#172235] sm:text-xl">
+              <h1 className="truncate font-serif text-[15px] font-black uppercase tracking-normal sm:tracking-wide text-[#172235] sm:text-xl">
                 Ministry of Useless Affairs
               </h1>
 
@@ -386,9 +383,9 @@ export default function RegisterPage() {
           MAIN CONTENT
       ======================================================== */}
 
-      <section className="absolute bottom-0 left-0 right-0 top-[113px] overflow-hidden">
+      <section className="relative lg:absolute lg:bottom-0 lg:left-0 lg:right-0 lg:top-[113px] overflow-y-auto lg:overflow-hidden py-6 sm:py-10 lg:py-0">
 
-        <div className="mx-auto grid h-full max-w-[1500px] grid-cols-1 items-center gap-10 px-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_570px] lg:gap-14 lg:px-10">
+        <div className="mx-auto grid min-h-full lg:h-full max-w-[1500px] grid-cols-1 items-center gap-10 px-4 sm:px-8 lg:grid-cols-[minmax(0,1fr)_570px] lg:gap-14 lg:px-10">
 
           {/* ====================================================
               LEFT SIDE
@@ -518,13 +515,13 @@ export default function RegisterPage() {
 
               {/* CARD HEADER */}
 
-              <div className="border-b-2 border-[#172235] bg-[#172235] px-7 py-5 text-white sm:px-8">
+              <div className="border-b-2 border-[#172235] bg-[#172235] px-5 py-4 text-white sm:px-8 sm:py-5">
 
                 <p className="text-[9px] font-black uppercase tracking-[0.22em] text-[#e8c878]">
                   Form MUA-CITIZEN/01
                 </p>
 
-                <h3 className="mt-1 font-serif text-[28px] font-black sm:text-[31px]">
+                <h3 className="mt-1 font-serif text-[24px] font-black sm:text-[31px]">
                   Citizenship Application
                 </h3>
 
@@ -532,7 +529,7 @@ export default function RegisterPage() {
 
               {/* CARD BODY */}
 
-              <div className="px-7 py-5 sm:px-8">
+              <div className="px-5 py-5 sm:px-8">
 
                 <form onSubmit={handleSubmit}>
 

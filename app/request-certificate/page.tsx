@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { getRank } from "@/lib/ranks";
 import PageContainer from "@/components/PageContainer";
 import {
   Award,
@@ -20,37 +21,10 @@ import {
   ClipboardList,
 } from "lucide-react";
 
-const CERTIFICATE_TYPES = [
-  {
-    type: "Certificate of Existence",
-    desc: "Formal proof that you exist and have been physically present in the universe today.",
-  },
-  {
-    type: "Certificate of Excessive Patience",
-    desc: "Awarded for surviving prolonged bureaucratic procedures without audible shouting.",
-  },
-  {
-    type: "Certificate of Unnecessary Participation",
-    desc: "Recognizes your admirable commitment to activities that required zero involvement.",
-  },
-  {
-    type: "Certificate of Administrative Suffering",
-    desc: "Certifies enduring unnecessary forms, triplicate signatures, and misplaced documents.",
-  },
-  {
-    type: "Certificate of Bureaucratic Excellence",
-    desc: "For mastering the art of looking profoundly busy while accomplishing nothing of note.",
-  },
-  {
-    type: "Other",
-    desc: "For highly custom or unclassified forms of questionable personal accomplishment.",
-  },
-];
-
 export default function RequestCertificatePage() {
-  const { user, citizen, refreshCitizen } = useAuth();
+  const { user, citizen, refreshCitizen, recordApplicationSubmission } = useAuth();
 
-  const [selectedType, setSelectedType] = useState(CERTIFICATE_TYPES[0].type);
+  const [certificateRequest, setCertificateRequest] = useState("");
   const [purpose, setPurpose] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -124,8 +98,13 @@ export default function RequestCertificatePage() {
       return;
     }
 
+    if (!certificateRequest.trim()) {
+      setError("Please specify what certificate you require.");
+      return;
+    }
+
     if (!purpose.trim()) {
-      setError("Please state the purpose of your certificate request.");
+      setError("Please state why the Ministry should issue this certificate.");
       return;
     }
 
@@ -150,7 +129,8 @@ export default function RequestCertificatePage() {
         userId: user.uid,
         citizenId,
         citizenName,
-        certificateType: selectedType,
+        certificateRequest: certificateRequest.trim(),
+        certificateType: certificateRequest.trim(), // for backwards compatibility
         purpose: purpose.trim(),
         notes: notes.trim() || null,
         status: "Submitted",
@@ -158,7 +138,11 @@ export default function RequestCertificatePage() {
         updatedAt: serverTimestamp(),
       };
 
-      // 1. Cache certificate request locally for instantaneous tracking and offline safety
+      // 1. Immediately record in reactive auth state and local cache
+      if (recordApplicationSubmission) {
+        recordApplicationSubmission(1, 20);
+      }
+
       if (typeof window !== "undefined") {
         try {
           const key = `mua_certificates_${user.uid}`;
@@ -170,46 +154,41 @@ export default function RequestCertificatePage() {
           });
           localStorage.setItem(key, JSON.stringify(existing));
 
-          // Also increment citizen applicationCount locally in cache
-          const cKey = `mua_citizen_${user.uid}`;
-          const cachedCitizen = localStorage.getItem(cKey);
-          if (cachedCitizen) {
-            const parsed = JSON.parse(cachedCitizen);
-            parsed.applicationCount = (parsed.applicationCount || 0) + 1;
-            localStorage.setItem(cKey, JSON.stringify(parsed));
-          }
         } catch (cacheErr) {
           console.warn("Could not cache certificate request locally:", cacheErr);
         }
       }
 
-      // 2. Real Firestore operations executed in parallel
-      const firestoreTask = Promise.all([
-        setDoc(doc(db, "certificateRequests", requestId), requestData),
-        setDoc(
-          doc(db, "citizens", user.uid),
-          { applicationCount: increment(1) },
-          { merge: true }
-        ),
-      ]);
+      // 2. Real Firestore operations executed with verification
+      const nextPoints = (citizen?.uselessPoints || 0) + 20;
+      const nextRank = getRank(nextPoints);
 
-      firestoreTask
-        .then(() => console.log("MUA — Certificate request recorded in Firestore:", requestId))
-        .catch((err) => console.warn("MUA — Firestore write queued/delayed:", err));
-
-      // 3. Fast authentic responsiveness: at most 500ms wait so the UI never hangs
-      await Promise.race([
-        firestoreTask,
-        new Promise((resolve) => setTimeout(resolve, 500)),
-      ]);
+      try {
+        await Promise.all([
+          setDoc(doc(db, "certificateRequests", requestId), requestData),
+          setDoc(
+            doc(db, "citizens", user.uid),
+            {
+              uid: user.uid,
+              applicationCount: increment(1),
+              uselessPoints: increment(20),
+              rank: nextRank,
+            },
+            { merge: true }
+          ),
+        ]);
+        console.log("MUA — Certificate request & stats confirmed in Firestore:", requestId);
+      } catch (firestoreErr) {
+        console.warn("MUA — Firestore write queued/delayed (saved locally):", firestoreErr);
+      }
 
       if (refreshCitizen) {
-        refreshCitizen();
+        await refreshCitizen();
       }
 
       setSubmittedId(requestId);
 
-      // 4. Trigger AI Case Assessment
+      // 3. Trigger AI Case Assessment (idempotent, does not affect points)
       processCaseWithAi(requestId, requestData);
     } catch (err: any) {
       console.error("MUA Certificate Request Error:", err);
@@ -223,7 +202,7 @@ export default function RequestCertificatePage() {
   };
 
   const handleReset = () => {
-    setSelectedType(CERTIFICATE_TYPES[0].type);
+    setCertificateRequest("");
     setPurpose("");
     setNotes("");
     setSubmittedId(null);
@@ -235,13 +214,13 @@ export default function RequestCertificatePage() {
   return (
     <PageContainer
       title="Request Certificate"
-      subtitle="Apply for official government validation of accomplishments that required minimal or entirely questionable effort."
+      subtitle="Apply for official government validation of accomplishments that required minimal, peculiar, or entirely questionable effort."
       showBackButton={true}
       maxWidth="max-w-3xl"
     >
       {/* SUCCESS STATE */}
       {submittedId ? (
-        <div className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] p-8 shadow-[6px_6px_0_#172235] text-center sm:p-10">
+        <div className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] p-5 shadow-[6px_6px_0_#172235] text-center sm:p-10">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#172235] bg-[#fff3d6] text-[#b38600] shadow-[3px_3px_0_#172235]">
             <Award size={36} />
           </div>
@@ -250,22 +229,31 @@ export default function RequestCertificatePage() {
             Application Acknowledged
           </span>
 
-          <h2 className="mt-3 font-serif text-3xl font-black text-[#172235] sm:text-4xl">
+          <h2 className="mt-3 font-serif text-2xl font-black text-[#172235] sm:text-4xl">
             Certificate Request Lodged
           </h2>
 
           <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-[#687386]">
-            Your request for a <strong className="text-[#172235]">{selectedType}</strong> has been routed to the Ministry's Artificially Intelligent Bureaucratic Council.
+            Your request for <strong className="text-[#172235]">"{certificateRequest}"</strong> has been routed to the Ministry's Artificially Intelligent Bureaucratic Council.
           </p>
 
           {/* AI Certificate Dossier Box */}
-          <div className="mx-auto my-6 max-w-md rounded-xl border-2 border-[#172235] bg-[#f4efe4] p-5 text-left shadow-[3px_3px_0_#172235]">
+          <div className="mx-auto my-6 max-w-md rounded-xl border-2 border-[#172235] bg-[#f4efe4] p-4 sm:p-5 text-left shadow-[3px_3px_0_#172235]">
             <div className="flex justify-between items-center text-xs pb-2.5 border-b border-[#d8cfbd]">
               <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
                 Request ID:
               </span>
               <span className="font-mono font-black text-sm text-[#9b1c31]">
                 {submittedId}
+              </span>
+            </div>
+
+            <div className="mt-2.5 flex justify-between items-center text-xs pb-2.5 border-b border-[#d8cfbd]">
+              <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
+                Requested Concept:
+              </span>
+              <span className="font-serif font-bold text-xs text-[#172235] text-right max-w-[180px] sm:max-w-[240px] truncate">
+                {certificateRequest}
               </span>
             </div>
 
@@ -292,7 +280,7 @@ export default function RequestCertificatePage() {
                 Certificate Title:
               </span>
               <span className="font-serif font-bold text-xs text-[#172235] text-right">
-                {aiResult?.certificateTitle || selectedType}
+                {aiResult?.certificateTitle || certificateRequest}
               </span>
             </div>
 
@@ -301,13 +289,13 @@ export default function RequestCertificatePage() {
                 Awarded Value:
               </span>
               <span className="font-serif font-black text-xs text-[#9b1c31] text-right tracking-wide">
-                {aiResult?.certificateValue || (processingAi ? "Synthesizing..." : "EXTRAORDINARY BUREAUCRATIC PATIENCE")}
+                {aiResult?.certificateValue || (processingAi ? "Synthesizing..." : "EXTRAORDINARY BUREAUCRATIC RECOGNITION")}
               </span>
             </div>
 
             <div className="mt-2.5">
               <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
-                Last Final Decision:
+                Final Ministry Decision:
               </span>
               {processingAi ? (
                 <div className="mt-2 flex items-center gap-2.5 p-3 rounded-lg border border-[#e8c878] bg-[#fff8e1] text-xs text-[#172235]">
@@ -318,7 +306,7 @@ export default function RequestCertificatePage() {
                 </div>
               ) : (
                 <p className="mt-1.5 p-3 rounded-lg border border-[#d8cfbd] bg-[#fffaf0] text-xs leading-5 text-[#172235] italic">
-                  "{aiResult?.finalDecision || "The Ministry has determined that the applicant demonstrated an unnecessarily admirable level of patience and is formally qualified for certification."}"
+                  "{aiResult?.finalDecision || "The Ministry has reviewed the applicant's submission and formally recognizes the achievement as unnecessarily significant."}"
                 </p>
               )}
             </div>
@@ -364,7 +352,7 @@ export default function RequestCertificatePage() {
         /* FORM STATE */
         <div className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] shadow-[6px_6px_0_#172235]">
           {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-6 py-4 text-white sm:px-8">
+          <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-4 py-3.5 text-white sm:px-8 sm:py-4">
             <div className="flex items-center gap-2.5">
               <Award size={20} className="text-[#e8c878]" />
               <span className="text-xs font-black uppercase tracking-[0.16em] text-[#e8c878]">
@@ -376,56 +364,34 @@ export default function RequestCertificatePage() {
             </span>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-4 sm:space-y-6">
             {error && (
               <div className="rounded-lg border-2 border-[#9b1c31] bg-[#fdf2f4] p-4 text-xs font-bold text-[#9b1c31]">
                 {error}
               </div>
             )}
 
-            {/* 1. Certificate Type */}
+            {/* 1. Free-Form Certificate Request */}
             <div>
-              <label className="mb-2.5 block text-xs font-black uppercase tracking-wider text-[#172235]">
-                1. Select Desired Certificate Type *
+              <label
+                htmlFor="cert-request"
+                className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
+              >
+                1. What certificate do you require? *
               </label>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {CERTIFICATE_TYPES.map((c) => (
-                  <label
-                    key={c.type}
-                    className={`flex cursor-pointer flex-col justify-between rounded-xl border-2 p-3.5 transition ${
-                      selectedType === c.type
-                        ? "border-[#9b1c31] bg-[#fdf2f4] shadow-[3px_3px_0_#9b1c31]"
-                        : "border-[#172235] bg-white hover:bg-[#eee8dc]"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <input
-                        type="radio"
-                        name="certificateType"
-                        value={c.type}
-                        checked={selectedType === c.type}
-                        onChange={(e) => setSelectedType(e.target.value)}
-                        className="sr-only"
-                      />
-                      <span className="font-serif text-sm font-black text-[#172235]">
-                        {c.type}
-                      </span>
-                      <span
-                        className={`mt-0.5 h-3.5 w-3.5 rounded-full border border-[#172235] flex items-center justify-center shrink-0 ${
-                          selectedType === c.type ? "bg-[#9b1c31]" : "bg-white"
-                        }`}
-                      >
-                        {selectedType === c.type && (
-                          <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                        )}
-                      </span>
-                    </div>
-                    <p className="mt-2 text-[11px] leading-4 text-[#687386]">
-                      {c.desc}
-                    </p>
-                  </label>
-                ))}
-              </div>
+              <input
+                id="cert-request"
+                type="text"
+                value={certificateRequest}
+                onChange={(e) => setCertificateRequest(e.target.value)}
+                placeholder="e.g. Certificate of Extreme Patience, Certificate for Surviving Unnecessary Meetings, Certificate of Outstanding Uselessness..."
+                required
+                disabled={loading}
+                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-3 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60 placeholder:text-[#94a3b8]"
+              />
+              <p className="mt-1.5 text-[11px] text-[#687386]">
+                Enter any certificate concept you desire. The Ministry does not restrict you to predefined categories.
+              </p>
             </div>
 
             {/* 2. Purpose */}
@@ -434,17 +400,17 @@ export default function RequestCertificatePage() {
                 htmlFor="cert-purpose"
                 className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
               >
-                2. Purpose of Certification *
+                2. Why should the Ministry issue this certificate? *
               </label>
               <textarea
                 id="cert-purpose"
                 rows={3}
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
-                placeholder="Explain why you or someone else deserves this official certificate (e.g. 'I attended a meeting that could have been an email', 'Personal amusement')."
+                placeholder="e.g. 'I want official recognition for successfully surviving unnecessary academic suffering.'"
                 required
                 disabled={loading}
-                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
+                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60 placeholder:text-[#94a3b8]"
               />
             </div>
 
@@ -454,16 +420,16 @@ export default function RequestCertificatePage() {
                 htmlFor="cert-notes"
                 className="mb-2 block text-xs font-black uppercase tracking-wider text-[#172235]"
               >
-                3. Additional Notes / Dedication
+                3. Additional Information / Notes
               </label>
               <input
                 id="cert-notes"
                 type="text"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g., 'Presented with mild reluctance by the Ministry'"
+                placeholder="e.g. 'Make it sound extremely prestigious.'"
                 disabled={loading}
-                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60"
+                className="w-full rounded-lg border-2 border-[#172235] bg-white px-4 py-2.5 text-sm font-medium outline-none transition focus:bg-[#fff8d9] focus:shadow-[3px_3px_0_#e8c878] disabled:opacity-60 placeholder:text-[#94a3b8]"
               />
             </div>
 
@@ -472,7 +438,7 @@ export default function RequestCertificatePage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-[#172235] bg-[#9b1c31] py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-[4px_4px_0_#172235] transition hover:bg-[#801426] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex w-full min-h-[46px] items-center justify-center gap-2 rounded-lg border-2 border-[#172235] bg-[#9b1c31] py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-[4px_4px_0_#172235] transition hover:bg-[#801426] hover:translate-x-[1px] hover:translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
               >
                 <Send size={15} />
                 <span>

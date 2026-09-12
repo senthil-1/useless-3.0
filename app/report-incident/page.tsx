@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
+import { getRank } from "@/lib/ranks";
 import PageContainer from "@/components/PageContainer";
 import {
   CheckCircle2,
@@ -38,7 +39,7 @@ const SEVERITIES = [
 ];
 
 export default function ReportIncidentPage() {
-  const { user, citizen, refreshCitizen } = useAuth();
+  const { user, citizen, refreshCitizen, recordApplicationSubmission } = useAuth();
 
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState(CATEGORIES[0]);
@@ -152,7 +153,11 @@ export default function ReportIncidentPage() {
         updatedAt: serverTimestamp(),
       };
 
-      // 1. Cache incident locally for instantaneous tracking and offline safety
+      // 1. Immediately record in reactive auth state and local cache
+      if (recordApplicationSubmission) {
+        recordApplicationSubmission(1, 10);
+      }
+
       if (typeof window !== "undefined") {
         try {
           const key = `mua_incidents_${user.uid}`;
@@ -164,46 +169,41 @@ export default function ReportIncidentPage() {
           });
           localStorage.setItem(key, JSON.stringify(existing));
 
-          // Also increment citizen applicationCount locally in cache
-          const cKey = `mua_citizen_${user.uid}`;
-          const cachedCitizen = localStorage.getItem(cKey);
-          if (cachedCitizen) {
-            const parsed = JSON.parse(cachedCitizen);
-            parsed.applicationCount = (parsed.applicationCount || 0) + 1;
-            localStorage.setItem(cKey, JSON.stringify(parsed));
-          }
         } catch (cacheErr) {
           console.warn("Could not cache incident locally:", cacheErr);
         }
       }
 
-      // 2. Real Firestore operations executed in parallel
-      const firestoreTask = Promise.all([
-        setDoc(doc(db, "incidents", incidentId), incidentData),
-        setDoc(
-          doc(db, "citizens", user.uid),
-          { applicationCount: increment(1) },
-          { merge: true }
-        ),
-      ]);
+      // 2. Real Firestore operations executed with verification
+      const nextPoints = (citizen?.uselessPoints || 0) + 10;
+      const nextRank = getRank(nextPoints);
 
-      firestoreTask
-        .then(() => console.log("MUA — Incident recorded in Firestore:", incidentId))
-        .catch((err) => console.warn("MUA — Firestore write queued/delayed:", err));
-
-      // 3. Fast authentic responsiveness: at most 500ms wait so the UI never hangs
-      await Promise.race([
-        firestoreTask,
-        new Promise((resolve) => setTimeout(resolve, 500)),
-      ]);
+      try {
+        await Promise.all([
+          setDoc(doc(db, "incidents", incidentId), incidentData),
+          setDoc(
+            doc(db, "citizens", user.uid),
+            {
+              uid: user.uid,
+              applicationCount: increment(1),
+              uselessPoints: increment(10),
+              rank: nextRank,
+            },
+            { merge: true }
+          ),
+        ]);
+        console.log("MUA — Incident & stats confirmed in Firestore:", incidentId);
+      } catch (firestoreErr) {
+        console.warn("MUA — Firestore write queued/delayed (saved locally):", firestoreErr);
+      }
 
       if (refreshCitizen) {
-        refreshCitizen();
+        await refreshCitizen();
       }
 
       setSubmittedId(incidentId);
 
-      // 4. Trigger AI Case Assessment
+      // 3. Trigger AI Case Assessment (idempotent, does not affect points)
       processCaseWithAi(incidentId, incidentData);
     } catch (err: any) {
       console.error("MUA Incident Report Error:", err);
@@ -238,7 +238,7 @@ export default function ReportIncidentPage() {
     >
       {/* SUCCESS STATE */}
       {submittedId ? (
-        <div className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] p-8 shadow-[6px_6px_0_#172235] text-center sm:p-10">
+        <div className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] p-5 shadow-[6px_6px_0_#172235] text-center sm:p-10">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#172235] bg-[#e8f5e9] text-[#2e7d32] shadow-[3px_3px_0_#172235]">
             <CheckCircle2 size={36} />
           </div>
@@ -247,7 +247,7 @@ export default function ReportIncidentPage() {
             Ministry Acknowledgment
           </span>
 
-          <h2 className="mt-3 font-serif text-3xl font-black text-[#172235] sm:text-4xl">
+          <h2 className="mt-3 font-serif text-2xl font-black text-[#172235] sm:text-4xl">
             Incident Submitted
           </h2>
 
@@ -256,7 +256,7 @@ export default function ReportIncidentPage() {
           </p>
 
           {/* AI & Case Dossier Card */}
-          <div className="mx-auto my-6 max-w-md rounded-xl border-2 border-[#172235] bg-[#f4efe4] p-5 text-left shadow-[3px_3px_0_#172235]">
+          <div className="mx-auto my-6 max-w-md rounded-xl border-2 border-[#172235] bg-[#f4efe4] p-4 sm:p-5 text-left shadow-[3px_3px_0_#172235]">
             <div className="flex justify-between items-center text-xs pb-2.5 border-b border-[#d8cfbd]">
               <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
                 Case ID:
@@ -279,7 +279,7 @@ export default function ReportIncidentPage() {
               <span className="font-bold text-[#687386] uppercase tracking-wider text-[10px]">
                 Status:
               </span>
-              <span className="inline-flex items-center rounded-full bg-[#e3f2fd] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#1565c0]">
+              <span className="inline-flex items-center rounded-full bg-[#fff8e1] px-2.5 py-0.5 text-[10px] font-black uppercase text-[#b38600]">
                 {aiResult?.status || "Under Review"}
               </span>
             </div>
@@ -292,29 +292,29 @@ export default function ReportIncidentPage() {
                 <div className="mt-2 flex items-center gap-2.5 p-3 rounded-lg border border-[#e8c878] bg-[#fff8e1] text-xs text-[#172235]">
                   <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-[#9b1c31] border-t-transparent shrink-0" />
                   <span className="text-[11px] leading-5">
-                    Your case has entered the Ministry's Artificially Intelligent Bureaucratic Processing Division. Pondering trivialities...
+                    Case is undergoing artificial bureaucratic analysis. Consulting procedural bylaws...
                   </span>
                 </div>
               ) : (
                 <p className="mt-1.5 p-3 rounded-lg border border-[#d8cfbd] bg-[#fffaf0] text-xs leading-5 text-[#172235] italic">
-                  "{aiResult?.finalDecision || "The Ministry has reviewed the circumstances and determined that the matter was sufficiently unnecessary to warrant prolonged administrative attention."}"
+                  "{aiResult?.finalDecision || "The Ministry has logged this triviality and determined that further administrative delay is entirely warranted."}"
                 </p>
               )}
             </div>
 
             {aiFailed && !processingAi && (
               <div className="mt-3 flex items-center justify-between pt-2 border-t border-[#d8cfbd]">
-                <span className="text-[10px] text-[#9b1c31] font-bold">AI assessment incomplete</span>
+                <span className="text-[10px] text-[#9b1c31] font-bold">AI processing delayed</span>
                 <button
                   type="button"
                   onClick={() => {
-                    const localInc = JSON.parse(localStorage.getItem(`mua_incidents_${user?.uid}`) || "[]");
-                    const current = localInc.find((i: any) => i.id === submittedId) || { id: submittedId };
+                    const localIncs = JSON.parse(localStorage.getItem(`mua_incidents_${user?.uid}`) || "[]");
+                    const current = localIncs.find((c: any) => c.id === submittedId) || { id: submittedId };
                     processCaseWithAi(submittedId, current);
                   }}
                   className="rounded border border-[#172235] bg-white px-2 py-1 text-[10px] font-black uppercase text-[#172235] hover:bg-[#eee8dc]"
                 >
-                  Retry AI Assessment
+                  Retry AI Review
                 </button>
               </div>
             )}
@@ -335,7 +335,7 @@ export default function ReportIncidentPage() {
               className="inline-flex items-center justify-center gap-2 rounded-lg border-2 border-[#172235] bg-white px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#172235] shadow-[3px_3px_0_#172235] transition hover:bg-[#eee8dc]"
             >
               <RotateCcw size={15} />
-              <span>Submit Another Incident</span>
+              <span>Report Another Incident</span>
             </button>
           </div>
         </div>
@@ -343,7 +343,7 @@ export default function ReportIncidentPage() {
         /* FORM STATE */
         <div className="overflow-hidden rounded-2xl border-2 border-[#172235] bg-[#fffaf0] shadow-[6px_6px_0_#172235]">
           {/* Header */}
-          <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-6 py-4 text-white sm:px-8">
+          <div className="flex items-center justify-between border-b-2 border-[#172235] bg-[#172235] px-4 py-3.5 text-white sm:px-8 sm:py-4">
             <div className="flex items-center gap-2.5">
               <FileWarning size={20} className="text-[#e8c878]" />
               <span className="text-xs font-black uppercase tracking-[0.16em] text-[#e8c878]">
@@ -355,7 +355,7 @@ export default function ReportIncidentPage() {
             </span>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-8 space-y-4 sm:space-y-6">
             {error && (
               <div className="rounded-lg border-2 border-[#9b1c31] bg-[#fdf2f4] p-4 text-xs font-bold text-[#9b1c31]">
                 {error}
@@ -453,7 +453,7 @@ export default function ReportIncidentPage() {
                 {SEVERITIES.map((s) => (
                   <label
                     key={s.value}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg border-2 p-3 text-xs font-bold transition ${
+                    className={`flex cursor-pointer items-start sm:items-center gap-2.5 sm:gap-3 rounded-lg border-2 p-2.5 sm:p-3 text-xs font-bold transition ${
                       severity === s.value
                         ? "border-[#9b1c31] bg-[#f5dfe3] text-[#9b1c31] shadow-[2px_2px_0_#9b1c31]"
                         : "border-[#172235] bg-white text-[#172235] hover:bg-[#eee8dc]"
@@ -467,7 +467,7 @@ export default function ReportIncidentPage() {
                       onChange={(e) => setSeverity(e.target.value)}
                       className="sr-only"
                     />
-                    <span className="h-3 w-3 rounded-full border border-[#172235] bg-white flex items-center justify-center">
+                    <span className="mt-0.5 sm:mt-0 h-3.5 w-3.5 rounded-full border border-[#172235] bg-white flex items-center justify-center shrink-0">
                       {severity === s.value && (
                         <span className="h-1.5 w-1.5 rounded-full bg-[#9b1c31]" />
                       )}
