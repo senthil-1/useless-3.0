@@ -5,6 +5,7 @@ import sharp from "sharp";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { verifyAuthToken } from "@/lib/server-auth";
+import { getCertificateFonts, renderTextToSvgPath } from "@/lib/certificate-font";
 
 function escapeXml(str: string): string {
   return str
@@ -91,61 +92,81 @@ export async function GET(req: NextRequest) {
       })
       .toUpperCase();
 
-    // 3. Dynamic Font Sizing
-    // Template is 1536 x 1024, Center X is 768
-    let nameFontSize = 38;
-    if (citizenName.length > 35) nameFontSize = 24;
-    else if (citizenName.length > 25) nameFontSize = 30;
-    else if (citizenName.length > 18) nameFontSize = 34;
+    // 3. Dynamic Font Sizing & Vector Path Generation using Bundled Font
+    const fonts = getCertificateFonts();
 
-    let valFontSize = 26;
-    if (certificateValue.length > 45) valFontSize = 17;
-    else if (certificateValue.length > 35) valFontSize = 20;
-    else if (certificateValue.length > 25) valFontSize = 23;
+    let initialNameSize = 38;
+    if (citizenName.length > 35) initialNameSize = 24;
+    else if (citizenName.length > 25) initialNameSize = 30;
+    else if (citizenName.length > 18) initialNameSize = 34;
 
-    // 4. Construct SVG Overlay
+    let initialValSize = 26;
+    if (certificateValue.length > 45) initialValSize = 17;
+    else if (certificateValue.length > 35) initialValSize = 20;
+    else if (certificateValue.length > 25) initialValSize = 23;
+
+    // 1. Citizen Name: centered at X=768, baseline Y=488
+    const nameResult = renderTextToSvgPath({
+      font: fonts.italic,
+      text: citizenName,
+      x: 768,
+      y: 488,
+      initialFontSize: initialNameSize,
+      alignment: "center",
+      maxWidth: 820,
+      minFontSize: 18,
+    });
+
+    // 2. Certificate Value: centered at X=768, baseline Y=597
+    const valResult = renderTextToSvgPath({
+      font: fonts.bold,
+      text: certificateValue,
+      x: 768,
+      y: 597,
+      initialFontSize: initialValSize,
+      alignment: "center",
+      maxWidth: 820,
+      minFontSize: 14,
+    });
+
+    // 3. Official Date: directly on the "DATE :" line at X=1215, baseline Y=926
+    const dateResult = renderTextToSvgPath({
+      font: fonts.bold,
+      text: formattedDate,
+      x: 1215,
+      y: 926,
+      initialFontSize: 17,
+      alignment: "left",
+      maxWidth: 220,
+      minFontSize: 12,
+    });
+
+    // 4. Case Identifier: discreet top right corner at X=1450, baseline Y=55
+    const caseResult = renderTextToSvgPath({
+      font: fonts.regular,
+      text: caseId,
+      x: 1450,
+      y: 55,
+      initialFontSize: 12,
+      alignment: "right",
+      maxWidth: 300,
+      minFontSize: 10,
+    });
+
+    // 4. Construct SVG Overlay with pure vector paths (independent of OS fonts)
     const svgOverlay = `
       <svg width="1536" height="1024" xmlns="http://www.w3.org/2000/svg">
-        <style>
-          .name {
-            font-family: 'Georgia', 'Times New Roman', serif;
-            font-weight: bold;
-            font-style: italic;
-            fill: #172235;
-            text-anchor: middle;
-          }
-          .value {
-            font-family: 'Georgia', 'Times New Roman', serif;
-            font-weight: 900;
-            letter-spacing: 2px;
-            fill: #9b1c31;
-            text-anchor: middle;
-          }
-          .date {
-            font-family: 'Georgia', 'Times New Roman', serif;
-            font-weight: bold;
-            fill: #172235;
-            letter-spacing: 1px;
-          }
-          .caseId {
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            fill: #687386;
-            text-anchor: end;
-          }
-        </style>
-
         <!-- Citizen Name: between "THIS IS TO CERTIFY THAT" and "HAS BEEN AWARDED THE" -->
-        <text x="768" y="488" class="name" font-size="${nameFontSize}">${escapeXml(citizenName)}</text>
+        <path d="${nameResult.d}" fill="#172235" />
 
         <!-- Certificate Value: between "HAS BEEN AWARDED THE" and appreciation paragraph -->
-        <text x="768" y="597" class="value" font-size="${valFontSize}">${escapeXml(certificateValue)}</text>
+        <path d="${valResult.d}" fill="#9b1c31" />
 
         <!-- Official Date: directly in the "DATE :" line area -->
-        <text x="1220" y="926" class="date" font-size="17">${escapeXml(formattedDate)}</text>
+        <path d="${dateResult.d}" fill="#172235" />
 
         <!-- Case Identifier: discreet top right corner -->
-        <text x="1450" y="55" class="caseId" font-size="12">${escapeXml(caseId)}</text>
+        <path d="${caseResult.d}" fill="#687386" />
       </svg>
     `;
 
