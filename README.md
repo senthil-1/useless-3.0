@@ -2,20 +2,20 @@
 
 
 
-# [Ministry of useless Affairs] 🎯
+# Ministry of useless Affairs 🎯
 
 
 ## Basic Details
-### Team Name: [Name]
+### Team Name: ctrl+Z
 
 
 ### Team Members
-- Team Lead: [Name] - [College]
-- Member 2: [Name] - [College]
-- Member 3: [Name] - [College]
+- Team Lead:Senthil R Menon - TocH Institute of Science and Technology
+- Member 1:Parvathy S - TocH Institute of Science and Technology
+
 
 ### Project Description
-[2-3 lines about what your project does]
+The Ministry of Uesless Affairs is a Government portal powered by AI which aims to turn pointless activities,complaints and achievements into entertaining experiance.people  are able to report incidents,ask for custom AI-produced certificates,track their applications,see their profile receive notices from various  departments that are generated dynamically
 
 ### The Problem (that doesn't exist)
 [What ridiculous problem are you solving?]
