@@ -2,7 +2,7 @@
 
 
 
-# [Project Name] 🎯
+# [Ministry of useless Affairs] 🎯
 
 
 ## Basic Details
